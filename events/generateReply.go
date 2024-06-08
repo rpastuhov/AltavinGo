@@ -11,7 +11,6 @@ import (
 
 func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
 	for _, user := range m.Mentions {
-
 		if user.ID == s.State.User.ID {
 			return true
 		}
@@ -32,7 +31,7 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 		return
 	}
 
-	if mention := isBotMention(s, m.Message); !mention {
+	if !isBotMention(s, m.Message) {
 		return
 	}
 
@@ -48,7 +47,7 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 		return
 	}
 
-	go api.AddToHistory(m.ChannelID, res.Context)
+	api.AddToHistory(m.ChannelID, res.Context)
 
 	if len(res.Response) > 2000 {
 		res.Response = res.Response[:2000]
