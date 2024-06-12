@@ -2,6 +2,8 @@ package bot
 
 import (
 	"fmt"
+	"log"
+	"ollama-discord/api"
 	"ollama-discord/config"
 	"ollama-discord/events"
 
@@ -13,9 +15,29 @@ type Bot struct {
 	Config  *config.Config
 }
 
+func NewBot(session *discordgo.Session, config *config.Config) *Bot {
+	return &Bot{
+		Session: session,
+		Config:  config,
+	}
+}
+
+func (bot *Bot) RegisterSlashCommands() error {
+	for _, v := range commands {
+		_, err := bot.Session.ApplicationCommandCreate(
+			bot.Session.State.User.ID, "", v.data,
+		)
+		if err != nil {
+			return err
+		}
+		log.Printf("Command %v registered\n", v.data.Name)
+	}
+	return nil
+}
+
 type command struct {
 	data    *discordgo.ApplicationCommand
-	execute func(*discordgo.Session, *discordgo.InteractionCreate)
+	execute func(*discordgo.Session, *discordgo.InteractionCreate, *api.ApiConfig)
 }
 
 var commands = map[string]command{
@@ -24,34 +46,25 @@ var commands = map[string]command{
 			Name:        "clear",
 			Description: "Clears context history in this channel",
 		},
-		execute: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, api *api.ApiConfig) {
+
+			if !api.DeleteChannelHistories(i.ChannelID) {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "History is already empty!",
+					},
+				})
+			}
 
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "Hey there! Congratulations, you just executed your first slash command",
+					Content: "History cleared!",
 				},
 			})
 		},
 	},
-}
-
-func (bot *Bot) RegisterSlashCommands(s *discordgo.Session) (string, error) {
-	for _, v := range commands {
-		_, err := s.ApplicationCommandCreate(
-			s.State.User.ID, "", v.data)
-		if err != nil {
-			return v.data.Name, err
-		}
-	}
-	return "", nil
-}
-
-func NewBot(session *discordgo.Session, config *config.Config) *Bot {
-	return &Bot{
-		Session: session,
-		Config:  config,
-	}
 }
 
 func (bot *Bot) RegisterHandlers() {
@@ -67,7 +80,7 @@ func (bot *Bot) RegisterHandlers() {
 
 	bot.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if c, ok := commands[i.ApplicationCommandData().Name]; ok {
-			c.execute(s, i)
+			c.execute(s, i, &bot.Config.ApiConfig)
 		}
 	})
 }
