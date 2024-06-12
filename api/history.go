@@ -40,7 +40,7 @@ func (api *ApiConfig) DeleteOldHistories(delay time.Duration) {
 
 	for channelId, history := range api.Channels {
 		if history.lastRequest.Before(difference) {
-			delete(api.Channels, channelId)
+			api.DeleteChannelHistories(channelId)
 		}
 	}
 }

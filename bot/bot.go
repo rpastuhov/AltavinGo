@@ -3,7 +3,6 @@ package bot
 import (
 	"fmt"
 	"log"
-	"ollama-discord/api"
 	"ollama-discord/config"
 	"ollama-discord/events"
 
@@ -35,38 +34,6 @@ func (bot *Bot) RegisterSlashCommands() error {
 	return nil
 }
 
-type command struct {
-	data    *discordgo.ApplicationCommand
-	execute func(*discordgo.Session, *discordgo.InteractionCreate, *api.ApiConfig)
-}
-
-var commands = map[string]command{
-	"clear": {
-		data: &discordgo.ApplicationCommand{
-			Name:        "clear",
-			Description: "Clears context history in this channel",
-		},
-		execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, api *api.ApiConfig) {
-
-			if !api.DeleteChannelHistories(i.ChannelID) {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: "History is already empty!",
-					},
-				})
-			}
-
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "History cleared!",
-				},
-			})
-		},
-	},
-}
-
 func (bot *Bot) RegisterHandlers() {
 	bot.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		fmt.Printf("Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
@@ -80,7 +47,7 @@ func (bot *Bot) RegisterHandlers() {
 
 	bot.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if c, ok := commands[i.ApplicationCommandData().Name]; ok {
-			c.execute(s, i, &bot.Config.ApiConfig)
+			c.execute(s, i, bot)
 		}
 	})
 }

@@ -14,19 +14,17 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// Получить контекст из сообщение на которое отвечаю
-// s.ChannelMessage(m.Message.Reference.ChannelID, m.Message.Reference.MessageID)
-
 // Open the log file
-func setupLogging() {
+func setupLogging() *os.File {
 	file, err := os.OpenFile("bot.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		log.Fatal("Failed to open log file: ", err)
 	}
-	defer file.Close()
 
 	mv := io.MultiWriter(file, os.Stdout)
 	log.SetOutput(mv)
+
+	return file
 }
 
 // Read the config file
@@ -45,10 +43,11 @@ func createBotSession(token string) *discordgo.Session {
 		log.Fatal("Failed creating Discord session: ", err)
 	}
 
+	// dg.Identify.Intents = discordgo.IntentGuildMessages
+
 	if err = dg.Open(); err != nil {
 		log.Fatal("Error opening connection,", err)
 	}
-	defer dg.Close()
 
 	return dg
 }
@@ -73,10 +72,12 @@ func waitForSignal() {
 }
 
 func main() {
-	setupLogging()
+	file := setupLogging()
+	defer file.Close()
 
 	cfg := readConfig()
 	dg := createBotSession(cfg.Token)
+	defer dg.Close()
 
 	b := bot.NewBot(dg, cfg)
 	b.RegisterHandlers()
