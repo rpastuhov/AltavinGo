@@ -1,9 +1,0 @@
-{
-	"token": "",
-	"timer-delay": 10,
-	"api-config": {
-		"api-domain": "http://localhost:11434",
-		"model": "llama3:8b",
-		"history-tokens-size": 4096
-	}
-}
