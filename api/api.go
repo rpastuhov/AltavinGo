@@ -9,18 +9,11 @@ import (
 	"strings"
 )
 
-const role string = `You are a discord bot, your task is to communicate 
-with users who mention you, answer only in the user's language and always 
-less than 2000 characters. Keep in mind that your response is used in the 
-json api response. Here is the text of the message in which you were mentioned:
-`
-
 type Request struct {
 	Model   string `json:"model"`
 	Prompt  string `json:"prompt"`
 	Context []int  `json:"context"`
 	Stream  bool   `json:"stream"`
-	Format  string `json:"format"`
 }
 
 type Response struct {
@@ -41,24 +34,23 @@ func (api *ApiConfig) Generate(content, channelId string) (*Response, error) {
 
 	requestBody, err := json.Marshal(Request{
 		Model:   api.Model,
-		Prompt:  role + content,
+		Prompt:  content,
 		Context: api.GetHistory(channelId),
 		Stream:  false,
-		Format:  "",
 	})
 	if err != nil {
-		log.Println("Error marshal Request: ", err)
+		log.Printf("Error marshalling request: %v", err)
 		return nil, err
 	}
 
 	res, err := http.Post(url, "application/json", strings.NewReader(string(requestBody)))
 	if err != nil {
-		log.Printf("Error sending request to API: %v,\nPrompt: %s\n", err, content)
+		log.Printf("Error sending request to API: %v, Prompt: %s", err, content)
 		return nil, err
 	}
 
-	if res.Status != "200 OK" {
-		log.Printf("Error response: %s,\nPrompt: %s\n", res.Status, content)
+	if res.StatusCode != http.StatusOK {
+		log.Printf("Error response: %s,\nPrompt: %s", res.Status, content)
 		return nil, errors.New("Response not 200 OK")
 	}
 
@@ -66,7 +58,7 @@ func (api *ApiConfig) Generate(content, channelId string) (*Response, error) {
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		log.Println("Error reading from response body: ", err)
+		log.Printf("Error reading response body: %v", err)
 		return nil, err
 	}
 
@@ -74,7 +66,7 @@ func (api *ApiConfig) Generate(content, channelId string) (*Response, error) {
 
 	err = json.Unmarshal(body, &formatted)
 	if err != nil {
-		log.Println("Error unmarshal Response:", err)
+		log.Printf("Error unmarshalling response: %v", err)
 		return nil, err
 	}
 
