@@ -37,19 +37,20 @@ func readConfig() *config.Config {
 }
 
 // Create a new bot session
-func createBotSession(token string) *discordgo.Session {
-	dg, err := discordgo.New("Bot " + token)
+func createBotSession(cfg *config.Config) *bot.Bot {
+	dg, err := discordgo.New("Bot " + cfg.Token)
 	if err != nil {
 		log.Fatal("Failed creating Discord session: ", err)
 	}
 
-	// dg.Identify.Intents = discordgo.IntentGuildMessages
+	b := bot.NewBot(dg, cfg)
+	b.RegisterHandlers()
 
 	if err = dg.Open(); err != nil {
 		log.Fatal("Error opening connection,", err)
 	}
 
-	return dg
+	return b
 }
 
 // Set up a ticker to remove old histories
@@ -76,20 +77,15 @@ func main() {
 	defer file.Close()
 
 	cfg := readConfig()
-	dg := createBotSession(cfg.Token)
-	defer dg.Close()
-
-	b := bot.NewBot(dg, cfg)
-	b.RegisterHandlers()
+	bot := createBotSession(cfg)
+	defer bot.Session.Close()
 
 	if false {
-		err := b.RegisterSlashCommands()
+		err := bot.RegisterSlashCommands()
 		if err != nil {
 			log.Fatal("Cannot register command: ", err)
 		}
 	}
-
-	log.Println("Bot is now running")
 
 	startTicker(cfg)
 	waitForSignal()

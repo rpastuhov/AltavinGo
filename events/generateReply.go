@@ -28,7 +28,7 @@ Content: %s
 Referenced Message: %s
 ---
 
-Now, based on this prompt, answer the user’s request.
+Now, based on this prompt, answer the user's request.
 `
 
 func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
@@ -38,10 +38,6 @@ func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
 		}
 	}
 	return false
-}
-
-func replacedBotMention(s *discordgo.Session, m *discordgo.Message) {
-	m.Content = strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", "<@Your mention>")
 }
 
 func getReferenceContent(s *discordgo.Session, msg *discordgo.Message) string {
@@ -58,13 +54,12 @@ func getReferenceContent(s *discordgo.Session, msg *discordgo.Message) string {
 }
 
 func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.ApiConfig) {
-	log.Println("Message")
-
 	if m.Author.ID == s.State.User.ID || !isBotMention(s, m.Message) {
 		return
 	}
 
-	replacedBotMention(s, m.Message)
+	m.Content = strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", "<@Your mention>")
+
 	content := fmt.Sprintf(prompt, m.Content, getReferenceContent(s, m.Message))
 
 	res, err := api.Generate(content, m.ChannelID)
@@ -75,7 +70,6 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 			"Oh, something happened, write me again😊",
 			m.Reference(),
 		)
-
 		return
 	}
 

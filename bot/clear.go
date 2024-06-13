@@ -8,7 +8,7 @@ var clear = command{
 		Description: "Clears context history in this channel",
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
-		message := "History cleared!"
+		message := "Context history cleared!"
 
 		if !bot.Config.ApiConfig.DeleteChannelHistories(i.ChannelID) {
 			message = "History is already empty!"

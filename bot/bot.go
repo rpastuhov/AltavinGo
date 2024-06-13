@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"fmt"
 	"log"
 	"ollama-discord/config"
 	"ollama-discord/events"
@@ -36,7 +35,7 @@ func (bot *Bot) RegisterSlashCommands() error {
 
 func (bot *Bot) RegisterHandlers() {
 	bot.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		fmt.Printf("Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
+		log.Printf("Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
 		s.UpdateGameStatus(0, "Chat with AI")
 	})
 

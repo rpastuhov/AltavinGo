@@ -35,16 +35,6 @@ func (api *ApiConfig) AddToHistory(channelId string, context []int) {
 	h.lastRequest = time.Now()
 }
 
-func (api *ApiConfig) DeleteOldHistories(delay time.Duration) {
-	difference := time.Now().Add(delay)
-
-	for channelId, history := range api.Channels {
-		if history.lastRequest.Before(difference) {
-			api.DeleteChannelHistories(channelId)
-		}
-	}
-}
-
 func (api *ApiConfig) GetHistory(channelId string) []int {
 	if _, ok := api.Channels[channelId]; ok {
 		return api.Channels[channelId].data
@@ -59,4 +49,14 @@ func (api *ApiConfig) DeleteChannelHistories(channelId string) bool {
 
 	delete(api.Channels, channelId)
 	return true
+}
+
+func (api *ApiConfig) DeleteOldHistories(delay time.Duration) {
+	difference := time.Now().Add(delay)
+
+	for channelId, history := range api.Channels {
+		if history.lastRequest.Before(difference) {
+			api.DeleteChannelHistories(channelId)
+		}
+	}
 }
