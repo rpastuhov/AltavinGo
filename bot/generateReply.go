@@ -1,9 +1,8 @@
-package events
+package bot
 
 import (
 	"fmt"
 	"log"
-	"ollama-discord/api"
 	"regexp"
 	"strings"
 	"time"
@@ -73,20 +72,30 @@ func replaceMentions(session *discordgo.Session, guildID string, message string)
 	return message
 }
 
-func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.ApiConfig) {
+func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) {
 	if m.Author.ID == s.State.User.ID || !isBotMention(s, m.Message) {
 		return
 	}
 
-	if !api.UpdateUserCounter(m.Author.ID) {
-		s.ChannelMessageSendReply(m.ChannelID, "You have reached the 40 request limit!", m.Reference())
+	if id, ok := bot.GuildSettings[m.GuildID]; ok {
+		if id != m.GuildID {
+			s.ChannelMessageSendReply(m.ChannelID, fmt.Sprintf("I can't answer you here, go to <#%s>.", id), m.Reference())
+			return
+		}
+	}
+
+	if !bot.Config.ApiConfig.UpdateUserCounter(m.Author.ID) {
+		cooldown := bot.Config.ApiConfig.Users[m.Author.ID].EndOfCooldown.Unix()
+		timestamp := fmt.Sprintf("You have reached your request limit, the next request can be made <t:%d:R>.", cooldown)
+		s.ChannelMessageSendReply(m.ChannelID, timestamp, m.Reference())
 		return
 	}
 
 	m.Content = strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", "<@Your mention>")
-	m.Content = m.ContentWithMentionsReplaced()
 
-	res, err := api.Generate(m.Content, getReferenceContent(s, m.Message), m.ChannelID)
+	res, err := bot.Config.ApiConfig.Generate(
+		m.Content, getReferenceContent(s, m.Message), m.ChannelID,
+	)
 	if err != nil {
 		log.Println("Error generating response: ", err)
 
@@ -97,7 +106,7 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 		return
 	}
 
-	api.AddToHistory(m.ChannelID, res.Context)
+	bot.Config.ApiConfig.AddToHistory(m.ChannelID, res.Context)
 
 	if len(res.Response) > 2000 {
 		res.Response = res.Response[:2000]
@@ -109,5 +118,4 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 	)
 
 	s.ChannelMessageSendReply(m.ChannelID, response, m.Reference())
-
 }

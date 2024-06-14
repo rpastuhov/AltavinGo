@@ -10,5 +10,7 @@ type command struct {
 }
 
 var commands = map[string]command{
-	"clear": clear,
+	"clear":           clear,
+	"set-bot-channel": setBotChannel,
+	"ping":            ping,
 }

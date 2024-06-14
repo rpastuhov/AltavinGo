@@ -25,8 +25,8 @@ type Response struct {
 }
 
 type User struct {
-	count         int
-	endOfCooldown time.Time
+	RequestsCount int
+	EndOfCooldown time.Time
 }
 
 type ApiConfig struct {
@@ -44,14 +44,14 @@ func (api *ApiConfig) UpdateUserCounter(userId string) bool {
 		api.Users[userId] = user
 	}
 
-	if user.count >= 1 {
-		if user.endOfCooldown.IsZero() {
-			user.endOfCooldown = time.Now().Add(10 * time.Hour)
+	if user.RequestsCount >= 6 {
+		if user.EndOfCooldown.IsZero() {
+			user.EndOfCooldown = time.Now().Add(30 * time.Minute)
 		}
 		return false
 	}
 
-	user.count++
+	user.RequestsCount++
 
 	return true
 }
@@ -60,7 +60,7 @@ func (api *ApiConfig) ResetUsersCounter(delay time.Duration) {
 	expirationTime := time.Now().Add(delay)
 
 	for id, user := range api.Users {
-		if user.endOfCooldown.Before(expirationTime) {
+		if user.EndOfCooldown.Before(expirationTime) {
 			delete(api.Users, id)
 		}
 	}
