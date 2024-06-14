@@ -4,32 +4,12 @@ import (
 	"fmt"
 	"log"
 	"ollama-discord/api"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
-
-const prompt string = `
-You are an AI bot for Discord. Your task is to respond to user messages as part of communication on the server.
-
-Here are some important details you need to consider:
-
-1. Your response should be relevant, helpful and polite.
-2. If the text of the user's message ("Content") contains a question or request for help, try to give a clear and informative answer.
-3. If the user is responding to a specific message ("Referenced Message"), consider the context of that message when composing your response.
-4. Your answer must be less than 2000 characters.
-5. Your response will be used for json response, so avoid using multi-line structures and formats that may complicate parsing.
-6. Answer in Russian or in the language in which the user wrote.
-
----
-
-Content: %s
-Referenced Message: %s
----
-
-Now, based on this prompt, answer the user's request.
-`
 
 func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
 	for _, user := range m.Mentions {
@@ -41,16 +21,56 @@ func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
 }
 
 func getReferenceContent(s *discordgo.Session, msg *discordgo.Message) string {
-	if msg.MessageReference == nil {
-		return ""
+	if ref := msg.MessageReference; ref != nil {
+		if mes, err := s.ChannelMessage(ref.ChannelID, ref.MessageID); err == nil {
+			return mes.Content
+		}
 	}
-	ref := msg.MessageReference
-	mes, err := s.ChannelMessage(ref.ChannelID, ref.MessageID)
-	if err != nil || mes.Content == "" {
-		return ""
+	return ""
+}
+
+func replaceMentions(session *discordgo.Session, guildID string, message string) string {
+	message = strings.ReplaceAll(message, "@everyone", "everyone")
+	message = strings.ReplaceAll(message, "@here", "here")
+
+	patterns := map[*regexp.Regexp]func(string) string{
+
+		regexp.MustCompile(`<@!?(\d+)>`): func(id string) string {
+			member, err := session.GuildMember(guildID, id)
+			if err != nil {
+				return "@" + id
+			}
+			if member.Nick != "" {
+				return "@" + member.Nick
+			}
+			return "@" + member.User.Username
+		},
+
+		regexp.MustCompile(`<@&(\d+)>`): func(id string) string {
+			role, err := session.State.Role(guildID, id)
+			if err != nil {
+				return "@" + id
+			}
+			return "@" + role.Name
+		},
+
+		regexp.MustCompile(`<#(\d+)>`): func(id string) string {
+			channel, err := session.State.Channel(id)
+			if err != nil {
+				return "#" + id
+			}
+			return "#" + channel.Name
+		},
 	}
 
-	return mes.Content
+	for pattern, handler := range patterns {
+		message = pattern.ReplaceAllStringFunc(message, func(match string) string {
+			id := pattern.FindStringSubmatch(match)[1]
+			return handler(id)
+		})
+	}
+
+	return message
 }
 
 func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.ApiConfig) {
@@ -58,11 +78,15 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 		return
 	}
 
+	if !api.UpdateUserCounter(m.Author.ID) {
+		s.ChannelMessageSendReply(m.ChannelID, "You have reached the 40 request limit!", m.Reference())
+		return
+	}
+
 	m.Content = strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", "<@Your mention>")
+	m.Content = m.ContentWithMentionsReplaced()
 
-	content := fmt.Sprintf(prompt, m.Content, getReferenceContent(s, m.Message))
-
-	res, err := api.Generate(content, m.ChannelID)
+	res, err := api.Generate(m.Content, getReferenceContent(s, m.Message), m.ChannelID)
 	if err != nil {
 		log.Println("Error generating response: ", err)
 
@@ -80,9 +104,10 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, api *api.Ap
 	}
 
 	response := fmt.Sprintf("%s\n\nResponse duration: %.2fs",
-		res.Response,
+		replaceMentions(s, m.GuildID, res.Response),
 		time.Duration(res.TotalDuration).Seconds(),
 	)
 
 	s.ChannelMessageSendReply(m.ChannelID, response, m.Reference())
+
 }

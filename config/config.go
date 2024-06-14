@@ -26,6 +26,7 @@ func NewConfig() (*Config, error) {
 	}
 
 	config.ApiConfig.Channels = make(map[string]*api.History)
+	config.ApiConfig.Users = make(map[string]*api.User)
 
 	return &config, nil
 }

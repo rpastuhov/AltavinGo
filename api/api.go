@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Request struct {
@@ -22,19 +24,75 @@ type Response struct {
 	TotalDuration int    `json:"total_duration"`
 }
 
+type User struct {
+	count         int
+	endOfCooldown time.Time
+}
+
 type ApiConfig struct {
 	ApiDomain         string `json:"api-domain"`
 	Model             string `json:"model"`
 	HistoryTokensSize int    `json:"history-tokens-size"`
 	Channels          map[string]*History
+	Users             map[string]*User
 }
 
-func (api *ApiConfig) Generate(content, channelId string) (*Response, error) {
+func (api *ApiConfig) UpdateUserCounter(userId string) bool {
+	user, exist := api.Users[userId]
+	if !exist {
+		user = &User{}
+		api.Users[userId] = user
+	}
+
+	if user.count >= 1 {
+		if user.endOfCooldown.IsZero() {
+			user.endOfCooldown = time.Now().Add(10 * time.Hour)
+		}
+		return false
+	}
+
+	user.count++
+
+	return true
+}
+
+func (api *ApiConfig) ResetUsersCounter(delay time.Duration) {
+	expirationTime := time.Now().Add(delay)
+
+	for id, user := range api.Users {
+		if user.endOfCooldown.Before(expirationTime) {
+			delete(api.Users, id)
+		}
+	}
+}
+
+const prompt string = `
+You are an AI bot for Discord. Your task is to respond to user messages as part of communication on the server.
+
+Here are some important details you need to consider:
+
+1. Your response should be relevant, helpful and polite.
+2. If the text of the user's message ("Content") contains a question or request for help, try to give a clear and informative answer.
+3. If the user is responding to a specific message ("Referenced Message"), consider the context of that message when composing your response.
+4. Your answer must be less than 2000 characters.
+5. Your response will be used for json response, so avoid using multi-line structures and formats that may complicate parsing.
+6. Answer in Russian or in the language in which the user wrote.
+
+---
+
+Content: %s
+Referenced Message: %s
+---
+
+Now, based on this prompt, answer the user's request.
+`
+
+func (api *ApiConfig) Generate(content, referenceContent, channelId string) (*Response, error) {
 	url := api.ApiDomain + "/api/generate"
 
 	requestBody, err := json.Marshal(Request{
 		Model:   api.Model,
-		Prompt:  content,
+		Prompt:  fmt.Sprintf(prompt, content, referenceContent),
 		Context: api.GetHistory(channelId),
 		Stream:  false,
 	})
@@ -45,12 +103,12 @@ func (api *ApiConfig) Generate(content, channelId string) (*Response, error) {
 
 	res, err := http.Post(url, "application/json", strings.NewReader(string(requestBody)))
 	if err != nil {
-		log.Printf("Error sending request to API: %v, Prompt: %s", err, content)
+		log.Printf("Error sending request to API: %v, Prompt: %s, Reference: %s", err, content, referenceContent)
 		return nil, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		log.Printf("Error response: %s,\nPrompt: %s", res.Status, content)
+		log.Printf("Error response: %s,\nPrompt: %s, Reference: %s", res.Status, content, referenceContent)
 		return nil, errors.New("Response not 200 OK")
 	}
 

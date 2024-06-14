@@ -61,6 +61,7 @@ func startTicker(cfg *config.Config) {
 		for {
 			<-ticker.C
 			cfg.ApiConfig.DeleteOldHistories(-delay)
+			cfg.ApiConfig.ResetUsersCounter(-delay)
 		}
 	}()
 }
@@ -78,7 +79,7 @@ func main() {
 
 	cfg := readConfig()
 	bot := createBotSession(cfg)
-	defer bot.Session.Close()
+	// defer bot.Session.Close()
 
 	if false {
 		err := bot.RegisterSlashCommands()
