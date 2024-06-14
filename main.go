@@ -61,6 +61,7 @@ func startTicker(cfg *config.Config) {
 		for {
 			<-ticker.C
 			cfg.ApiConfig.DeleteOldHistories(-delay)
+			cfg.ApiConfig.ResetUsersCounter(-delay)
 		}
 	}()
 }

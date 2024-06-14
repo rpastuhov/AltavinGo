@@ -52,10 +52,10 @@ func (api *ApiConfig) DeleteChannelHistories(channelId string) bool {
 }
 
 func (api *ApiConfig) DeleteOldHistories(delay time.Duration) {
-	difference := time.Now().Add(delay)
+	expirationTime := time.Now().Add(delay)
 
 	for channelId, history := range api.Channels {
-		if history.lastRequest.Before(difference) {
+		if history.lastRequest.Before(expirationTime) {
 			api.DeleteChannelHistories(channelId)
 		}
 	}
