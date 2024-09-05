@@ -18,7 +18,7 @@ func newHistory(size int) *History {
 	}
 }
 
-func (api *ApiConfig) AddToHistory(channelId string, context []int) {
+func AddToHistory(channelId string, context []int) {
 	if _, ok := api.Channels[channelId]; !ok {
 		api.Channels[channelId] = newHistory(api.HistoryTokensSize)
 	}
@@ -35,14 +35,14 @@ func (api *ApiConfig) AddToHistory(channelId string, context []int) {
 	h.lastRequest = time.Now()
 }
 
-func (api *ApiConfig) GetHistory(channelId string) []int {
+func GetHistory(channelId string) []int {
 	if _, ok := api.Channels[channelId]; ok {
 		return api.Channels[channelId].data
 	}
 	return nil
 }
 
-func (api *ApiConfig) DeleteChannelHistories(channelId string) bool {
+func DeleteChannelHistories(channelId string) bool {
 	if _, ok := api.Channels[channelId]; !ok {
 		return false
 	}
@@ -51,7 +51,7 @@ func (api *ApiConfig) DeleteChannelHistories(channelId string) bool {
 	return true
 }
 
-func (api *ApiConfig) DeleteOldHistories(delay time.Duration) {
+func DeleteOldHistories(delay time.Duration) {
 	expirationTime := time.Now().Add(delay)
 
 	for channelId, history := range api.Channels {

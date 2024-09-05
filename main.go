@@ -29,7 +29,7 @@ func setupLogging() *os.File {
 
 // Read the config file
 func readConfig() *config.Config {
-	cfg, err := config.NewConfig()
+	cfg, err := config.New()
 	if err != nil {
 		log.Fatal("Failed to read config: ", err)
 	}
@@ -43,11 +43,14 @@ func createBotSession(cfg *config.Config) *bot.Bot {
 		log.Fatal("Failed creating Discord session: ", err)
 	}
 
-	b := bot.NewBot(dg, cfg)
+	b, err := bot.NewBot(dg, cfg)
+	if err != nil {
+		log.Fatalf("bot initialization error: %v", err)
+	}
 	b.RegisterHandlers()
 
 	if err = dg.Open(); err != nil {
-		log.Fatal("Error opening connection,", err)
+		log.Fatal("error opening connection: ", err)
 	}
 
 	return b
@@ -55,13 +58,13 @@ func createBotSession(cfg *config.Config) *bot.Bot {
 
 // Set up a ticker to remove old histories
 func startTicker(cfg *config.Config) {
-	delay := cfg.TimerDelay * time.Minute
+	delay := cfg.HistoryTimer * time.Minute
 	ticker := time.NewTicker(delay)
 	go func() {
 		for {
 			<-ticker.C
-			cfg.ApiConfig.DeleteOldHistories(-delay)
-			cfg.ApiConfig.ResetUsersCounter(-delay)
+			// cfg.ApiConfig.DeleteOldHistories(-delay)
+			// cfg.ApiConfig.ResetUsersCounter(-delay)
 		}
 	}()
 }
@@ -84,7 +87,7 @@ func main() {
 	if false {
 		err := bot.RegisterSlashCommands()
 		if err != nil {
-			log.Fatal("Cannot register command: ", err)
+			log.Fatal("cannot register command: ", err)
 		}
 	}
 

@@ -41,7 +41,7 @@ var setBotChannel = command{
 			response = "Restrictions have been removed, the bot is available in all channels!"
 		}
 
-		err := bot.UpdateGuildSettings(i.GuildID, channelID)
+		err := bot.UpdateGuildCfg(i.GuildID, channelID)
 		if err != nil {
 			response = "Error while saving!!"
 		}

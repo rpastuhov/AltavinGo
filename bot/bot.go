@@ -2,6 +2,7 @@ package bot
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"ollama-discord/config"
 	"os"
@@ -15,17 +16,17 @@ type Bot struct {
 	GuildSettings map[string]string
 }
 
-func NewBot(session *discordgo.Session, config *config.Config) *Bot {
-	settings, err := LoadJson("guilds.json")
+func NewBot(session *discordgo.Session, config *config.Config) (*Bot, error) {
+	settings, err := loadGuildsCfg("guilds.json")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	return &Bot{
 		Session:       session,
 		Config:        config,
 		GuildSettings: settings,
-	}
+	}, nil
 }
 
 func (bot *Bot) RegisterSlashCommands() error {
@@ -46,11 +47,14 @@ func (bot *Bot) RegisterSlashCommands() error {
 func (bot *Bot) RegisterHandlers() {
 	bot.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
-		s.UpdateGameStatus(0, "Chat with AI")
+		err := s.UpdateGameStatus(0, "Chat with AI")
+		if err != nil {
+			log.Print("failed to set user status")
+		}
 	})
 
 	bot.Session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		GenerateReply(s, m, bot)
+		SendReply(s, m, bot)
 	})
 
 	bot.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -60,41 +64,34 @@ func (bot *Bot) RegisterHandlers() {
 	})
 }
 
-func (bot *Bot) UpdateGuildSettings(guildId string, data string) error {
+func (bot *Bot) UpdateGuildCfg(guildId string, data string) error {
 	if data == "" {
 		delete(bot.GuildSettings, guildId)
 	} else {
 		bot.GuildSettings[guildId] = data
 	}
-	return SaveJson(bot.GuildSettings, "guilds.json")
+	return saveJson(bot.GuildSettings, "guilds.json")
 }
 
-func SaveJson(m map[string]string, fileName string) error {
+func saveJson(m map[string]string, fileName string) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
-		return err
+		return fmt.Errorf("error converting to json object: %v", err)
 	}
 
 	return os.WriteFile(fileName, jsonData, 0644)
 }
 
-func LoadJson(fileName string) (map[string]string, error) {
+func loadGuildsCfg(fileName string) (map[string]string, error) {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
-		if err := SaveJson(map[string]string{}, fileName); err != nil {
-			return nil, err
-		}
-
-		data, err = os.ReadFile(fileName)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("error reading file %s: %v", fileName, err)
 	}
 
 	var m map[string]string
 
 	if err = json.Unmarshal(data, &m); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json syntax problem: %v", err)
 	}
 
 	return m, nil

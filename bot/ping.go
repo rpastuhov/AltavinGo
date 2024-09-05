@@ -22,8 +22,11 @@ var ping = command{
 			},
 		})
 
-		elapsed := time.Since(start)
-		content := fmt.Sprintf("Pong!\nGateway Ping: `%v`,\nREST Ping: `%v`", elapsed, s.HeartbeatLatency())
+		elapsedSeconds := time.Since(start).Seconds()
+		heartbeatLatencySeconds := s.HeartbeatLatency().Seconds()
+
+		content := fmt.Sprintf("Pong!\nGateway Ping: `%.2f`,\nREST Ping: `%.2f`",
+			elapsedSeconds, heartbeatLatencySeconds)
 
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Content: &content,

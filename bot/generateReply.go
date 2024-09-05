@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"log"
+	"ollama-discord/api"
 	"regexp"
 	"strings"
 	"time"
@@ -10,32 +11,14 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
-	for _, user := range m.Mentions {
-		if user.ID == s.State.User.ID {
-			return true
-		}
-	}
-	return false
-}
-
-func getReferenceContent(s *discordgo.Session, msg *discordgo.Message) string {
-	if ref := msg.MessageReference; ref != nil {
-		if mes, err := s.ChannelMessage(ref.ChannelID, ref.MessageID); err == nil {
-			return mes.Content
-		}
-	}
-	return ""
-}
-
-func replaceMentions(session *discordgo.Session, guildID string, message string) string {
+func replaceMentions(s *discordgo.Session, guildID string, message string) string {
 	message = strings.ReplaceAll(message, "@everyone", "everyone")
 	message = strings.ReplaceAll(message, "@here", "here")
 
 	patterns := map[*regexp.Regexp]func(string) string{
 
 		regexp.MustCompile(`<@!?(\d+)>`): func(id string) string {
-			member, err := session.GuildMember(guildID, id)
+			member, err := s.GuildMember(guildID, id)
 			if err != nil {
 				return "@" + id
 			}
@@ -46,7 +29,7 @@ func replaceMentions(session *discordgo.Session, guildID string, message string)
 		},
 
 		regexp.MustCompile(`<@&(\d+)>`): func(id string) string {
-			role, err := session.State.Role(guildID, id)
+			role, err := s.State.Role(guildID, id)
 			if err != nil {
 				return "@" + id
 			}
@@ -54,7 +37,7 @@ func replaceMentions(session *discordgo.Session, guildID string, message string)
 		},
 
 		regexp.MustCompile(`<#(\d+)>`): func(id string) string {
-			channel, err := session.State.Channel(id)
+			channel, err := s.State.Channel(id)
 			if err != nil {
 				return "#" + id
 			}
@@ -72,45 +55,84 @@ func replaceMentions(session *discordgo.Session, guildID string, message string)
 	return message
 }
 
-func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) {
-	if m.Author.ID == s.State.User.ID || !isBotMention(s, m.Message) {
-		return
-	}
-
-	if id, ok := bot.GuildSettings[m.GuildID]; ok {
-		if id != m.GuildID {
-			s.ChannelMessageSendReply(m.ChannelID, fmt.Sprintf("I can't answer you here, go to <#%s>.", id), m.Reference())
-			return
+func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
+	for _, user := range m.Mentions {
+		if user.ID == s.State.User.ID {
+			return true
 		}
 	}
+	return false
+}
 
-	if !bot.Config.ApiConfig.UpdateUserCounter(m.Author.ID) {
-		cooldown := bot.Config.ApiConfig.Users[m.Author.ID].EndOfCooldown.Unix()
-		timestamp := fmt.Sprintf("You have reached your request limit, the next request can be made <t:%d:R>.", cooldown)
-		s.ChannelMessageSendReply(m.ChannelID, timestamp, m.Reference())
-		return
+func pingInNotAllowedChannels(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) (bool, error) {
+	if guildSettings, ok := bot.GuildSettings[m.GuildID]; ok && guildSettings != m.ChannelID {
+
+		message := fmt.Sprintf("I can't answer you here, go to <#%s>.", guildSettings)
+
+		if _, err := s.ChannelMessageSendReply(m.ChannelID, message, m.Reference()); err != nil {
+			return true, fmt.Errorf("error sending message: %v", err)
+		}
+
+		return true, nil
 	}
 
-	m.Content = strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", "<@Your mention>")
+	return false, nil
+}
 
-	res, err := bot.Config.ApiConfig.Generate(
-		m.Content, getReferenceContent(s, m.Message), m.ChannelID,
-	)
+func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error {
+	if m.Author.ID == s.State.User.ID || m.Mentions[0].ID == s.State.User.ID {
+		return nil
+	}
+
+	if ok, err := pingInNotAllowedChannels(s, m, bot); !ok {
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	err := s.ChannelTyping(m.ChannelID)
 	if err != nil {
-		log.Println("Error generating response: ", err)
-
-		s.ChannelMessageSendReply(m.ChannelID,
-			"Oh, something happened, write me again😊",
-			m.Reference(),
-		)
-		return
+		return fmt.Errorf("error channel typing: %v", err)
 	}
 
-	bot.Config.ApiConfig.AddToHistory(m.ChannelID, res.Context)
+	prompt := strings.TrimSpace(strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", ""))
 
-	if len(res.Response) > 2000 {
-		res.Response = res.Response[:2000]
+	image, err := api.GetImageBase64(m)
+	if err != nil {
+		return err
 	}
+
+	payload := api.AddToChat(m.ChannelID, prompt, image, bot.Config.Model)
+	log.Printf("[API]: Processing '%s' for %s (%s)", prompt, m.Author.ID, m.Message.Member.Nick)
+
+	// if !bot.Config.ApiConfig.UpdateUserCounter(m.Author.ID) {
+	// 	cooldown := bot.Config.ApiConfig.Users[m.Author.ID].EndOfCooldown.Unix()
+	// 	timestamp := fmt.Sprintf("You have reached your request limit, the next request can be made <t:%d:R>.", cooldown)
+	// 	s.ChannelMessageSendReply(m.ChannelID, timestamp, m.Reference())
+	// 	return nil
+	// }
+
+	res, err := api.Generate(payload, prompt, bot.Config.BaseURL)
+
+	if err != nil {
+
+		return fmt.Errorf("Error generating response: ", err)
+
+		// log.Println("Error generating response: ", err)
+
+		// s.ChannelMessageSendReply(m.ChannelID,
+		// 	"Oh, something happened, write me again😊",
+		// 	m.Reference(),
+		// )
+		// return
+	}
+
+	// bot.Config.ApiConfig.AddToHistory(m.ChannelID, res.Context)
+
+	// if len(res.Response) > 2000 {
+	// 	res.Response = res.Response[:2000]
+	// }
 
 	response := fmt.Sprintf("%s\n\nResponse duration: %.2fs",
 		replaceMentions(s, m.GuildID, res.Response),
@@ -118,4 +140,6 @@ func GenerateReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) {
 	)
 
 	s.ChannelMessageSendReply(m.ChannelID, response, m.Reference())
+
+	return nil
 }
