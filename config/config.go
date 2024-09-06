@@ -13,13 +13,16 @@ import (
 // }
 
 type Config struct {
-	Token             string        `json:"token"`
-	HistoryTimer      time.Duration `json:"history_timer"`
-	HistoryTokensSize int           `json:"histor_tokens_size"`
-	BaseURL           string        `json:"base_url"`
-	Model             string        `json:"model"`
-	SystemPrompt      string        `json:"system_prompt"`
-	RegisterCommands  string        `json:"register_slash_commands"`
+	Token                  string        `json:"token"`
+	HistoryTimer           time.Duration `json:"timer_for_clearing_history_from_memory_with_saving_to_file"`
+	BaseURL                string        `json:"base_url"`
+	Model                  string        `json:"model"`
+	SystemPrompt           string        `json:"system_prompt"`
+	MaxTokens              int           `json:"max_tokens"`
+	Temperature            float32       `json:"temperature"`
+	RegisterCommands       bool          `json:"register_slash_commands"`
+	MessagesNumberFromUser int           `json:"number_of_messages_from_user_without_cooldown"`
+	CooldownTime           time.Duration `json:"cooldown_time"`
 }
 
 func New() (*Config, error) {

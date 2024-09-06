@@ -43,7 +43,7 @@ var setBotChannel = command{
 
 		err := bot.UpdateGuildCfg(i.GuildID, channelID)
 		if err != nil {
-			response = "Error while saving!!"
+			response = "[ERROR]: while saving!!"
 		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

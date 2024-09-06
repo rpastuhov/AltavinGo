@@ -1,4 +1,4 @@
-# Ollama-discord
+# AltavinGo
 
 Discord bot to interact with [Ollama](https://github.com/jmorganca/ollama) as a chatbot
 

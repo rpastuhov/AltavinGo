@@ -1,6 +1,11 @@
 package bot
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"AltavinGo/api"
+	"log"
+
+	"github.com/bwmarrin/discordgo"
+)
 
 var clear = command{
 	data: &discordgo.ApplicationCommand{
@@ -8,17 +13,19 @@ var clear = command{
 		Description: "Clears context history in this channel",
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
-		message := "Context history cleared!"
+		if err := api.ChatReset(i.ChannelID); err == nil {
+			log.Printf("[ERROR]: chat reset: %v", err)
+		}
 
-		// if !bot.Config.ApiConfig.DeleteChannelHistories(i.ChannelID) {
-		// 	message = "History is already empty!"
-		// }
+		log.Printf("Chat has been reset for %s (%s)", i.Member.User.Username, i.Member.User.GlobalName)
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: message,
+				Content: "Chat has been reset",
 			},
-		})
+		}); err != nil {
+			log.Printf("[ERROR]: interaction reply sending: %v", err)
+		}
 	},
 }

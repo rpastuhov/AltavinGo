@@ -1,15 +1,30 @@
 package bot
 
 import (
+	"AltavinGo/api"
 	"fmt"
 	"log"
-	"ollama-discord/api"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+func DisplayName(m *discordgo.Member) string {
+	if m.Nick != "" {
+		return m.Nick
+	}
+	return m.User.GlobalName
+}
+
+func isBotMention(s *discordgo.Session, m *discordgo.MessageCreate) bool {
+	for _, user := range m.Mentions {
+		if user.ID == s.State.User.ID {
+			return true
+		}
+	}
+	return false
+}
 
 func replaceMentions(s *discordgo.Session, guildID string, message string) string {
 	message = strings.ReplaceAll(message, "@everyone", "everyone")
@@ -55,22 +70,13 @@ func replaceMentions(s *discordgo.Session, guildID string, message string) strin
 	return message
 }
 
-func isBotMention(s *discordgo.Session, m *discordgo.Message) bool {
-	for _, user := range m.Mentions {
-		if user.ID == s.State.User.ID {
-			return true
-		}
-	}
-	return false
-}
-
 func pingInNotAllowedChannels(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) (bool, error) {
 	if guildSettings, ok := bot.GuildSettings[m.GuildID]; ok && guildSettings != m.ChannelID {
+		log.Printf("[INFO]: Redirecting %s (%s) to allowed channel in guild %s", m.Author.Username, m.Author.GlobalName, m.GuildID)
+		redirectMessage := fmt.Sprintf("I can't answer you here, go to <#%s>.", guildSettings)
 
-		message := fmt.Sprintf("I can't answer you here, go to <#%s>.", guildSettings)
-
-		if _, err := s.ChannelMessageSendReply(m.ChannelID, message, m.Reference()); err != nil {
-			return true, fmt.Errorf("error sending message: %v", err)
+		if _, err := s.ChannelMessageSendReply(m.ChannelID, redirectMessage, m.Reference()); err != nil {
+			return true, fmt.Errorf("[ERROR]: sending message: %v", err)
 		}
 
 		return true, nil
@@ -79,21 +85,45 @@ func pingInNotAllowedChannels(s *discordgo.Session, m *discordgo.MessageCreate, 
 	return false, nil
 }
 
+func cooldownCheck(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) (bool, error) {
+	if bot.UpdateUserCounter(m.GuildID, m.Author.ID) {
+		return false, nil
+	}
+
+	cooldown := bot.Cooldowns[m.GuildID].Users[m.Author.ID].EndCooldown.Unix()
+	timestamp := fmt.Sprintf(
+		"You have reached the %d message request limit on this server!\nThe next request will be available <t:%d:R>.",
+		bot.Config.MessagesNumberFromUser, cooldown)
+
+	log.Printf("[INFO]: Cooldown triggered for user %s (%s) in guild %s", m.Author.Username, m.Author.GlobalName, m.GuildID)
+
+	if _, err := s.ChannelMessageSendReply(m.ChannelID, timestamp, m.Reference()); err != nil {
+		return true, fmt.Errorf("[ERROR]: sending message: %v", err)
+	}
+	return false, nil
+}
+
 func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error {
-	if m.Author.ID == s.State.User.ID || m.Mentions[0].ID == s.State.User.ID {
+	if m.Author.ID == s.State.User.ID || !isBotMention(s, m) {
 		return nil
 	}
 
-	if ok, err := pingInNotAllowedChannels(s, m, bot); !ok {
+	if ok, err := pingInNotAllowedChannels(s, m, bot); ok {
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	err := s.ChannelTyping(m.ChannelID)
-	if err != nil {
-		return fmt.Errorf("error channel typing: %v", err)
+	if ok, err := cooldownCheck(s, m, bot); ok {
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := s.ChannelTyping(m.ChannelID); err != nil {
+		return fmt.Errorf("[ERROR]: channel typing: %v", err)
 	}
 
 	prompt := strings.TrimSpace(strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", ""))
@@ -103,43 +133,32 @@ func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error
 		return err
 	}
 
-	payload := api.AddToChat(m.ChannelID, prompt, image, bot.Config.Model)
-	log.Printf("[API]: Processing '%s' for %s (%s)", prompt, m.Author.ID, m.Message.Member.Nick)
+	payload := api.AddToChat(m.ChannelID, "user", prompt, image, bot.Config.Model)
 
-	// if !bot.Config.ApiConfig.UpdateUserCounter(m.Author.ID) {
-	// 	cooldown := bot.Config.ApiConfig.Users[m.Author.ID].EndOfCooldown.Unix()
-	// 	timestamp := fmt.Sprintf("You have reached your request limit, the next request can be made <t:%d:R>.", cooldown)
-	// 	s.ChannelMessageSendReply(m.ChannelID, timestamp, m.Reference())
-	// 	return nil
-	// }
+	log.Printf("[INFO]: Processing: '%s' for %s (%s)", prompt, m.Author.Username, m.Author.GlobalName)
 
 	res, err := api.Generate(payload, prompt, bot.Config.BaseURL)
-
 	if err != nil {
-
-		return fmt.Errorf("Error generating response: ", err)
-
-		// log.Println("Error generating response: ", err)
-
-		// s.ChannelMessageSendReply(m.ChannelID,
-		// 	"Oh, something happened, write me again😊",
-		// 	m.Reference(),
-		// )
-		// return
+		return fmt.Errorf("[ERROR]: generating response: %v", err)
 	}
 
-	// bot.Config.ApiConfig.AddToHistory(m.ChannelID, res.Context)
+	context := res.Choices[0].Message.Context
 
-	// if len(res.Response) > 2000 {
-	// 	res.Response = res.Response[:2000]
-	// }
+	if len(context) > 2000 {
+		context = context[:2000]
+	}
 
-	response := fmt.Sprintf("%s\n\nResponse duration: %.2fs",
-		replaceMentions(s, m.GuildID, res.Response),
-		time.Duration(res.TotalDuration).Seconds(),
-	)
+	api.AddToChat(m.ChannelID, "assistant", context, "", bot.Config.Model)
 
-	s.ChannelMessageSendReply(m.ChannelID, response, m.Reference())
+	log.Printf("[INFO]: Response: '%s' for %s (%s)", context, m.Author.Username, m.Author.GlobalName)
+
+	if _, err := s.ChannelMessageSendReply(
+		m.ChannelID,
+		replaceMentions(s, m.GuildID, context),
+		m.Reference(),
+	); err != nil {
+		return fmt.Errorf("[ERROR]: message sending: %v", err)
+	}
 
 	return nil
 }

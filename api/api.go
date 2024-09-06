@@ -7,78 +7,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type Request struct {
-	Model   string `json:"model"`
-	Prompt  string `json:"prompt"`
-	Context []int  `json:"context"`
-	Stream  bool   `json:"stream"`
+type Choice struct {
+	FinishReason string  `json:"finish_reason"`
+	Message      Message `json:"message"`
 }
 
 type Response struct {
-	Response      string `json:"response"`
-	Context       []int  `json:"context"`
-	TotalDuration int    `json:"total_duration"`
+	Choices []Choice `json:"choices"`
+	Created int64    `json:"created"`
+	Model   string   `json:"model"`
 }
-
-type Message struct {
-	Role    string `json:"role"` // role: the role of the message, either system, user, assistant, or tool
-	Context string `json:"content"`
-	Images  []string
-}
-
-type Chat struct {
-	Model    string    `json:"model"`
-	Stream   bool      `json:"stream"`
-	Messages []Message `json:"messages"`
-}
-
-var activeChats = struct {
-	sync.RWMutex
-	data map[string]Chat
-}{data: make(map[string]Chat)}
-
-// type User struct {
-// 	RequestsCount int
-// 	EndOfCooldown time.Time
-// }
-
-// type ApiCfg struct {
-// 	Users map[string]*User
-// }
-
-// func (api *ApiCfg) UpdateUserCounter(userId string) bool {
-// 	user, exist := api.Users[userId]
-// 	if !exist {
-// 		user = &User{}
-// 		api.Users[userId] = user
-// 	}
-
-// 	if user.RequestsCount >= 6 {
-// 		if user.EndOfCooldown.IsZero() {
-// 			user.EndOfCooldown = time.Now().Add(30 * time.Minute)
-// 		}
-// 		return false
-// 	}
-
-// 	user.RequestsCount++
-
-// 	return true
-// }
-
-// func (api *ApiCfg) ResetUsersCounter(delay time.Duration) {
-// 	expirationTime := time.Now().Add(delay)
-
-// 	for id, user := range api.Users {
-// 		if user.EndOfCooldown.Before(expirationTime) {
-// 			delete(api.Users, id)
-// 		}
-// 	}
-// }
 
 const system string = `
 You are an AI bot for Discord. Your task is to respond to user messages as part of communication on the server.
@@ -101,121 +43,8 @@ Referenced Message: %s
 Now, based on this prompt, answer the user's request.
 `
 
-// func (api *ApiCfg) GenerateOld(content, referenceContent, channelId string) (*Response, error) {
-// 	url := api.ApiDomain + "/api/generate"
-
-// 	requestBody, err := json.Marshal(Request{
-// 		Model:   api.Model,
-// 		Prompt:  fmt.Sprintf(prompt, content, referenceContent),
-// 		Context: api.GetHistory(channelId),
-// 		Stream:  false,
-// 	})
-// 	if err != nil {
-// 		log.Printf("Error marshalling request: %v", err)
-// 		return nil, err
-// 	}
-
-// 	res, err := http.Post(url, "application/json", strings.NewReader(string(requestBody)))
-// 	if err != nil {
-// 		log.Printf("Error sending request to API: %v, Prompt: %s, Reference: %s", err, content, referenceContent)
-// 		return nil, err
-// 	}
-
-// 	if res.StatusCode != http.StatusOK {
-// 		log.Printf("Error response: %s,\nPrompt: %s, Reference: %s", res.Status, content, referenceContent)
-// 		return nil, errors.New("Response not 200 OK")
-// 	}
-
-// 	defer res.Body.Close()
-
-// 	body, err := io.ReadAll(res.Body)
-// 	if err != nil {
-// 		log.Printf("Error reading response body: %v", err)
-// 		return nil, err
-// 	}
-
-// 	var formatted Response
-
-// 	err = json.Unmarshal(body, &formatted)
-// 	if err != nil {
-// 		log.Printf("Error unmarshalling response: %v", err)
-// 		return nil, err
-// 	}
-
-// 	return &formatted, nil
-// }
-
-// func Generate(payload []interface{}, prompt string) (*Response, error) {
-
-// 	url := "http://localhost:11434/api/chat"
-
-// 	jsonPayload, err := json.Marshal(payload)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Error marshalling request: %v", err)
-// 	}
-
-// 	res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonPayload))
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Error sending request to API: %v, Prompt: %s", err, prompt)
-// 	}
-
-// 	defer res.Body.Close()
-
-// 	if res.StatusCode != http.StatusOK {
-// 		return nil, fmt.Errorf("Error response code: %v", err)
-// 	}
-
-// 	body, err := io.ReadAll(res.Body)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Error reading response body: %v", err)
-// 	}
-
-// 	var resp Response
-
-// 	err = json.Unmarshal(body, &resp)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Error unmarshalling response: %v", err)
-// 	}
-
-// 	return &resp, nil
-// }
-
-func AddToChat(channelID, prompt, image, modelName string) Chat {
-	activeChats.Lock()
-	defer activeChats.Unlock()
-
-	if _, ok := activeChats.data[channelID]; !ok {
-		activeChats.data[channelID] = Chat{
-			Model:  modelName,
-			Stream: false,
-			Messages: []Message{
-				{
-					Role:    "user",
-					Context: prompt,
-					Images:  []string{image},
-				},
-			},
-		}
-
-		return activeChats.data[channelID]
-	}
-
-	chat := activeChats.data[channelID]
-
-	chat.Messages = append(activeChats.data[channelID].Messages, Message{
-		Role:    "user",
-		Context: prompt,
-		Images:  []string{image},
-	})
-
-	activeChats.data[channelID] = chat
-
-	return activeChats.data[channelID]
-
-}
-
 func GetImageBase64(m *discordgo.MessageCreate) (string, error) {
-	if len(m.Message.Attachments) < 0 {
+	if len(m.Message.Attachments) == 0 {
 		return "", nil
 	}
 
@@ -223,13 +52,13 @@ func GetImageBase64(m *discordgo.MessageCreate) (string, error) {
 
 	response, err := http.Get(imageURL)
 	if err != nil {
-		return "", fmt.Errorf("Error while getting image: %v", err)
+		return "", fmt.Errorf("[ERROR]: while getting image: %v", err)
 	}
 	defer response.Body.Close()
 
 	imageData, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", fmt.Errorf("Error reading image: %v", err)
+		return "", fmt.Errorf("[ERROR]: reading image: %v", err)
 	}
 
 	return base64.StdEncoding.EncodeToString(imageData), nil
@@ -237,35 +66,57 @@ func GetImageBase64(m *discordgo.MessageCreate) (string, error) {
 
 func Generate(payload Chat, prompt, baseURL string) (*Response, error) {
 
-	url := fmt.Sprintf("http://%s/api/chat", baseURL)
+	// url := fmt.Sprintf("http://%s/api/chat", baseURL)
+	url := fmt.Sprintf("https://%s/v1/chat/completions", baseURL)
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("Error marshalling request: %v", err)
+		return nil, fmt.Errorf("[ERROR]: marshalling request: %v", err)
 	}
 
-	res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonPayload))
+	// res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonPayload))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("[ERROR]: sending request to API: %v, Prompt: %s", err, prompt)
+	// }
+
+	// defer res.Body.Close()
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return nil, fmt.Errorf("Error sending request to API: %v, Prompt: %s", err, prompt)
+		return nil, fmt.Errorf("[ERROR]: sending request to API: %v, Prompt: %s", err, prompt)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer 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")
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("[ERROR]: sending request to API: %v", err)
+	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Error response code: %v", err)
-	}
+	// if res.StatusCode != http.StatusOK {
+	// 	return nil, fmt.Errorf("[ERROR]: response code: %v", res.StatusCode)
+	// }
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading response body: %v", err)
+		return nil, fmt.Errorf("[ERROR]: reading response body: %v", err)
 	}
 
-	var resp Response
+	// Выводим содержимое тела ответа в формате JSON
+	fmt.Println("Response Body (JSON):")
+	var jsonBody map[string]interface{}
+	json.Unmarshal(body, &jsonBody)
+	jsonFormatted, _ := json.MarshalIndent(jsonBody, "", "  ")
+	fmt.Println(string(jsonFormatted))
 
-	err = json.Unmarshal(body, &resp)
+	var resUnmarshal Response
+	err = json.Unmarshal(body, &resUnmarshal)
 	if err != nil {
-		return nil, fmt.Errorf("Error unmarshalling response: %v", err)
+		return nil, fmt.Errorf("[ERROR]: unmarshalling response: %v", err)
 	}
 
-	return &resp, nil
+	return &resUnmarshal, nil
 }

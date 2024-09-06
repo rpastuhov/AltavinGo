@@ -1,4 +1,4 @@
-module ollama-discord
+module AltavinGo
 
 go 1.22.3
 
