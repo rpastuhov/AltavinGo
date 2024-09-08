@@ -10,21 +10,23 @@ import (
 var clear = command{
 	data: &discordgo.ApplicationCommand{
 		Name:        "clear",
-		Description: "Clears context history in this channel",
+		Description: "Clears chat history for this channel.",
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
 		if err := api.ChatReset(i.ChannelID); err == nil {
 			log.Printf("[ERROR]: chat reset: %v", err)
+		} else {
+			log.Printf("[INFO]: Chat has been reset by %s (%s): %s", i.Member.User.Username, i.Member.User.GlobalName, i.GuildID)
 		}
 
-		log.Printf("Chat has been reset for %s (%s)", i.Member.User.Username, i.Member.User.GlobalName)
-
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Chat has been reset",
 			},
-		}); err != nil {
+		}
+
+		if err := s.InteractionRespond(i.Interaction, response); err != nil {
 			log.Printf("[ERROR]: interaction reply sending: %v", err)
 		}
 	},

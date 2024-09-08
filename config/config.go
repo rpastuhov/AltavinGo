@@ -6,15 +6,10 @@ import (
 	"time"
 )
 
-// type Config struct {
-// 	Token      string        `json:"token"`
-// 	TimerDelay time.Duration `json:"timer-delay"`
-// 	ApiConfig  api.ApiConfig `json:"api-config"`
-// }
-
 type Config struct {
-	Token                  string        `json:"token"`
-	HistoryTimer           time.Duration `json:"timer_for_clearing_history_from_memory_with_saving_to_file"`
+	TokenDiscord           string        `json:"tokenDiscord"`
+	TokenLLM               string        `json:"tokenLLM"`
+	HistoryTimer           time.Duration `json:"historyTimer"`
 	BaseURL                string        `json:"base_url"`
 	Model                  string        `json:"model"`
 	SystemPrompt           string        `json:"system_prompt"`
@@ -39,21 +34,3 @@ func New() (*Config, error) {
 
 	return &config, nil
 }
-
-// func NewConfig() (*Config, error) {
-// 	configData, err := os.ReadFile("config.json")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	var config Config
-
-// 	if err = json.Unmarshal(configData, &config); err != nil {
-// 		return nil, err
-// 	}
-
-// 	config.ApiConfig.Channels = make(map[string]*api.History)
-// 	config.ApiConfig.Users = make(map[string]*api.User)
-
-// 	return &config, nil
-// }

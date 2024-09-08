@@ -34,7 +34,7 @@ func NewBot(config *config.Config) (*Bot, error) {
 		return nil, err
 	}
 
-	dg, err := discordgo.New("Bot " + config.Token)
+	dg, err := discordgo.New("Bot " + config.TokenDiscord)
 	if err != nil {
 		return nil, fmt.Errorf("[ERROR]: Failed creating Discord session: %v", err)
 	}
@@ -63,8 +63,7 @@ func (bot *Bot) RegisterSlashCommands() error {
 		log.Printf("Command %v add\n", v.data.Name)
 	}
 
-	_, err := bot.Session.ApplicationCommandBulkOverwrite(bot.Session.State.User.ID, "", data)
-	if err != nil {
+	if _, err := bot.Session.ApplicationCommandBulkOverwrite(bot.Session.State.User.ID, "", data); err != nil {
 		return err
 	}
 	log.Printf("%d slash-commands registered\n", len(data))
@@ -74,8 +73,8 @@ func (bot *Bot) RegisterSlashCommands() error {
 func (bot *Bot) RegisterHandlers() {
 	bot.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
-		err := s.UpdateGameStatus(0, "Chat with AI")
-		if err != nil {
+
+		if err := s.UpdateGameStatus(0, "Chat with AI"); err != nil {
 			log.Println("[ERROR]: Failed to set user status")
 		}
 	})
@@ -83,6 +82,7 @@ func (bot *Bot) RegisterHandlers() {
 	bot.Session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if err := SendReply(s, m, bot); err != nil {
 			log.Println(err)
+
 			if _, err := s.ChannelMessageSendReply(m.ChannelID, "Something went wrong.", m.Reference()); err != nil {
 				log.Printf("[ERROR]: message sending: %v", err)
 			}
@@ -106,39 +106,6 @@ func (bot *Bot) StartTimer() {
 			bot.ResetUsersCounter()
 		}
 	}()
-}
-
-func (bot *Bot) UpdateGuildCfg(guildId string, data string) error {
-	if data == "" {
-		delete(bot.GuildSettings, guildId)
-	} else {
-		bot.GuildSettings[guildId] = data
-	}
-	return saveJson(bot.GuildSettings, "guilds.json")
-}
-
-func saveJson(m map[string]string, fileName string) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return fmt.Errorf("[ERROR]: converting to json object: %v", err)
-	}
-
-	return os.WriteFile(fileName, jsonData, 0644)
-}
-
-func loadGuildsCfg(fileName string) (map[string]string, error) {
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		return nil, fmt.Errorf("[ERROR]: reading file %s: %v", fileName, err)
-	}
-
-	var m map[string]string
-
-	if err = json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("[ERROR]: json syntax problem: %v", err)
-	}
-
-	return m, nil
 }
 
 func (bot *Bot) UpdateUserCounter(serverID, userID string) bool {
@@ -192,7 +159,35 @@ func (bot *Bot) ResetUsersCounter() {
 	}
 }
 
-// expirationTime := time.Now().Add(bot.Config.CooldownTime)
-// if user.EndCooldown.Before(expirationTime) {
-// 	delete(bot.Cooldowns, id)
-// }
+func (bot *Bot) UpdateGuildCfg(guildId string, data string) error {
+	if data == "" {
+		delete(bot.GuildSettings, guildId)
+	} else {
+		bot.GuildSettings[guildId] = data
+	}
+	return saveJson(bot.GuildSettings, "guilds.json")
+}
+
+func saveJson(m map[string]string, fileName string) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("[ERROR]: converting to json object: %v", err)
+	}
+
+	return os.WriteFile(fileName, jsonData, 0644)
+}
+
+func loadGuildsCfg(fileName string) (map[string]string, error) {
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("[ERROR]: reading file %s: %v", fileName, err)
+	}
+
+	var m map[string]string
+
+	if err = json.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("[ERROR]: json syntax problem: %v", err)
+	}
+
+	return m, nil
+}

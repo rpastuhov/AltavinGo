@@ -10,13 +10,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func DisplayName(m *discordgo.Member) string {
-	if m.Nick != "" {
-		return m.Nick
-	}
-	return m.User.GlobalName
-}
-
 func isBotMention(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	for _, user := range m.Mentions {
 		if user.ID == s.State.User.ID {
@@ -78,10 +71,8 @@ func pingInNotAllowedChannels(s *discordgo.Session, m *discordgo.MessageCreate, 
 		if _, err := s.ChannelMessageSendReply(m.ChannelID, redirectMessage, m.Reference()); err != nil {
 			return true, fmt.Errorf("[ERROR]: sending message: %v", err)
 		}
-
 		return true, nil
 	}
-
 	return false, nil
 }
 
@@ -127,36 +118,31 @@ func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error
 	}
 
 	prompt := strings.TrimSpace(strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", ""))
-
 	image, err := api.GetImageBase64(m)
 	if err != nil {
 		return err
 	}
 
-	payload := api.AddToChat(m.ChannelID, "user", prompt, image, bot.Config.Model)
+	chat := api.NewChat(m.ChannelID, bot.Config.SystemPrompt, bot.Config.Model, false, bot.Config.MaxTokens, bot.Config.Temperature)
+	payload := chat.AddToChat("user", prompt, image)
 
-	log.Printf("[INFO]: Processing: '%s' for %s (%s)", prompt, m.Author.Username, m.Author.GlobalName)
+	log.Printf("[INFO]: Processing: '%s' for %s (%s): %s", prompt, m.Author.Username, m.Author.GlobalName, m.GuildID)
 
-	res, err := api.Generate(payload, prompt, bot.Config.BaseURL)
+	res, err := api.Generate(payload, prompt, bot.Config.BaseURL, bot.Config.TokenLLM)
 	if err != nil {
 		return fmt.Errorf("[ERROR]: generating response: %v", err)
 	}
 
 	context := res.Choices[0].Message.Context
-
 	if len(context) > 2000 {
 		context = context[:2000]
 	}
 
-	api.AddToChat(m.ChannelID, "assistant", context, "", bot.Config.Model)
+	chat.AddToChat("assistant", context, "")
 
-	log.Printf("[INFO]: Response: '%s' for %s (%s)", context, m.Author.Username, m.Author.GlobalName)
+	log.Printf("[INFO]: Response: '%s' for %s (%s): %s", context, m.Author.Username, m.Author.GlobalName, m.GuildID)
 
-	if _, err := s.ChannelMessageSendReply(
-		m.ChannelID,
-		replaceMentions(s, m.GuildID, context),
-		m.Reference(),
-	); err != nil {
+	if _, err := s.ChannelMessageSendReply(m.ChannelID, replaceMentions(s, m.GuildID, context), m.Reference()); err != nil {
 		return fmt.Errorf("[ERROR]: message sending: %v", err)
 	}
 

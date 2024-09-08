@@ -13,4 +13,5 @@ var commands = map[string]command{
 	"clear":           clear,
 	"set-bot-channel": setBotChannel,
 	"ping":            ping,
+	"history":         history,
 }
