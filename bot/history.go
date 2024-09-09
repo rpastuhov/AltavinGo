@@ -14,8 +14,14 @@ var history = command{
 		Description: "The history of your chats with the bot.",
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
+		g, err := s.Guild(i.GuildID)
+		if err != nil {
+			log.Printf("[ERROR]: get guild: %v", err)
+			return
+		}
+
 		history := api.GetChatHistory(i.ChannelID)
-		log.Printf("[INFO]: Requesting a chat history from %s (%s): %s", i.Member.User.Username, i.Member.User.GlobalName, i.GuildID)
+		log.Printf("[INFO]: %s/%s/%s/%s: Requesting a chat history", i.Member.User.Username, i.Member.User.GlobalName, g.Name, g.ID)
 
 		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,

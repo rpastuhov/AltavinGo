@@ -2,14 +2,16 @@ package api
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-
-	"github.com/bwmarrin/discordgo"
 )
+
+type Usage struct {
+	TotalTime   float64 `json:"total_time"`
+	TotalTokens int     `json:"total_tokens"`
+}
 
 type Choice struct {
 	FinishReason string  `json:"finish_reason"`
@@ -20,28 +22,29 @@ type Response struct {
 	Choices []Choice `json:"choices"`
 	Created int64    `json:"created"`
 	Model   string   `json:"model"`
+	Usage   Usage    `json:"usage"`
 }
 
-func GetImageBase64(m *discordgo.MessageCreate) (string, error) {
-	if len(m.Message.Attachments) == 0 {
-		return "", nil
-	}
+// func GetImageBase64(m *discordgo.MessageCreate) (string, error) {
+// 	if len(m.Message.Attachments) == 0 {
+// 		return "", nil
+// 	}
 
-	imageURL := m.Message.Attachments[0].URL
+// 	imageURL := m.Message.Attachments[0].URL
 
-	response, err := http.Get(imageURL)
-	if err != nil {
-		return "", fmt.Errorf("while getting image: %v", err)
-	}
-	defer response.Body.Close()
+// 	response, err := http.Get(imageURL)
+// 	if err != nil {
+// 		return "", fmt.Errorf("while getting image: %v", err)
+// 	}
+// 	defer response.Body.Close()
 
-	imageData, err := io.ReadAll(response.Body)
-	if err != nil {
-		return "", fmt.Errorf("reading image: %v", err)
-	}
+// 	imageData, err := io.ReadAll(response.Body)
+// 	if err != nil {
+// 		return "", fmt.Errorf("reading image: %v", err)
+// 	}
 
-	return base64.StdEncoding.EncodeToString(imageData), nil
-}
+// 	return base64.StdEncoding.EncodeToString(imageData), nil
+// }
 
 func Generate(payload *Chat, prompt, baseURL, token string) (*Response, error) {
 	url := fmt.Sprintf("https://%s/v1/chat/completions", baseURL)
@@ -66,21 +69,20 @@ func Generate(payload *Chat, prompt, baseURL, token string) (*Response, error) {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("response code: %v", res.StatusCode)
-	}
-
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response body: %v", err)
 	}
 
-	// Выводим содержимое тела ответа в формате JSON
-	fmt.Println("Response Body (JSON):")
-	var jsonBody map[string]interface{}
-	json.Unmarshal(body, &jsonBody)
-	jsonFormatted, _ := json.MarshalIndent(jsonBody, "", "  ")
-	fmt.Println(string(jsonFormatted))
+	if res.StatusCode != http.StatusOK {
+		var jsonBody map[string]interface{}
+		json.Unmarshal(body, &jsonBody)
+
+		responseForm, _ := json.Marshal(jsonBody)
+		payloadForm, _ := json.Marshal(payload)
+
+		return nil, fmt.Errorf("code: %v: response: %v payload: %v", res.StatusCode, string(responseForm), string(payloadForm))
+	}
 
 	var resUnmarshal Response
 	err = json.Unmarshal(body, &resUnmarshal)

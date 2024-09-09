@@ -60,19 +60,19 @@ func (bot *Bot) RegisterSlashCommands() error {
 	var data []*discordgo.ApplicationCommand
 	for _, v := range commands {
 		data = append(data, v.data)
-		log.Printf("Command %v add\n", v.data.Name)
+		log.Printf("[INFO]: Command %v add\n", v.data.Name)
 	}
 
 	if _, err := bot.Session.ApplicationCommandBulkOverwrite(bot.Session.State.User.ID, "", data); err != nil {
 		return err
 	}
-	log.Printf("%d slash-commands registered\n", len(data))
+	log.Printf("[INFO]: %d slash-commands registered\n", len(data))
 	return nil
 }
 
 func (bot *Bot) RegisterHandlers() {
 	bot.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
+		log.Printf("[INFO]: Loging as %s#%s\n", r.User.Username, r.User.Discriminator)
 
 		if err := s.UpdateGameStatus(0, "Chat with AI"); err != nil {
 			log.Println("[ERROR]: Failed to set user status")
@@ -81,7 +81,7 @@ func (bot *Bot) RegisterHandlers() {
 
 	bot.Session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if err := SendReply(s, m, bot); err != nil {
-			log.Println(err)
+			log.Printf("[ERROR]: %v", err)
 
 			if _, err := s.ChannelMessageSendReply(m.ChannelID, "Something went wrong.", m.Reference()); err != nil {
 				log.Printf("[ERROR]: message sending: %v", err)
@@ -97,13 +97,17 @@ func (bot *Bot) RegisterHandlers() {
 }
 
 func (bot *Bot) StartTimer() {
-	delay := bot.Config.HistoryTimer * time.Minute
+	delay := bot.Config.HistoryTimer*time.Minute - 50*time.Second
 	ticker := time.NewTicker(delay)
 	go func() {
 		for {
 			<-ticker.C
-			api.UnloadInactiveChats(delay)
+			err := api.UnloadInactiveChats(delay)
+			if err != nil {
+				log.Printf("[ERROR]: unload inactive chats: %v", err)
+			}
 			bot.ResetUsersCounter()
+			log.Println("[INFO]: Trimer")
 		}
 	}()
 }
@@ -119,29 +123,24 @@ func (bot *Bot) UpdateUserCounter(serverID, userID string) bool {
 
 	user, userExists := server.Users[userID]
 	if !userExists {
-		server.Users[userID] = User{RequestsCount: 1}
-		return true
+		server.Users[userID] = User{RequestsCount: 0}
 	}
 
-	if user.EndCooldown.Before(now) {
-		delete(bot.Cooldowns, userID)
-		return true
-	}
+	user.RequestsCount++
+	server.Users[userID] = user
 
 	if user.EndCooldown.After(now) {
 		return false
 	}
 
-	if user.RequestsCount >= bot.Config.MessagesNumberFromUser {
+	if user.RequestsCount > bot.Config.MaxUserRequests {
 		user.EndCooldown = now.Add(bot.Config.CooldownTime * time.Minute)
 		server.Users[userID] = user
-		bot.Cooldowns[userID] = server
 		return false
 	}
 
-	user.RequestsCount++
-	server.Users[userID] = user
 	bot.Cooldowns[serverID] = server
+
 	return true
 }
 
