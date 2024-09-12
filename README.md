@@ -14,8 +14,8 @@ AltavinGo is a platform for integrating and utilizing large language models (LLM
 
 1. Clone the repository and navigate to the project directory.
    ```bash
-   git clone https://github.com/your-repo/altavingo.git
-   cd altavingo
+   git clone https://github.com/rpastuhov/AltavinGo.git
+   cd AltavinGo
    ```
 
 2. In the project files, you will find a sample configuration file (`config.json`) that is already set up to work with [Ollama](https://github.com/ollama/ollama). The only thing you need to do is [create a Discord bot](https://discord.com/developers/applications) and insert the token into the appropriate field.
