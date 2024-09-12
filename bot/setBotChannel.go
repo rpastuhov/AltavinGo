@@ -35,15 +35,15 @@ var setBotChannel = command{
 				response = "Channel not found or unavailable!"
 			} else {
 				channelID = channel.ID
-				response = fmt.Sprintf("The bot is configured for the <#%s> channel", channelID)
+				response = fmt.Sprintf("The bot is configured for the <#%s> channel.", channelID)
 			}
 		} else {
-			response = "Restrictions have been removed, the bot is available in all channels!"
+			response = "The bot is available in all channels."
 		}
 
-		err := bot.UpdateGuildSettings(i.GuildID, channelID)
+		err := bot.UpdateGuildCfg(i.GuildID, channelID)
 		if err != nil {
-			response = "Error while saving!!"
+			response = "Saving error."
 		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

@@ -2,18 +2,25 @@ package config
 
 import (
 	"encoding/json"
-	"ollama-discord/api"
 	"os"
 	"time"
 )
 
 type Config struct {
-	Token      string        `json:"token"`
-	TimerDelay time.Duration `json:"timer-delay"`
-	ApiConfig  api.ApiConfig `json:"api-config"`
+	TokenDiscord     string        `json:"tokenDiscord"`
+	TokenLLM         string        `json:"tokenLLM"`
+	HistoryTimer     time.Duration `json:"historyTimer"`
+	BaseURL          string        `json:"base_url"`
+	Model            string        `json:"model"`
+	SystemPrompt     string        `json:"system_prompt"`
+	MaxTokens        int           `json:"max_tokens"`
+	Temperature      float32       `json:"temperature"`
+	RegisterCommands bool          `json:"register_slash_commands"`
+	MaxUserRequests  int           `json:"maxUserRequests"`
+	CooldownTime     time.Duration `json:"cooldown_time"`
 }
 
-func NewConfig() (*Config, error) {
+func New() (*Config, error) {
 	configData, err := os.ReadFile("config.json")
 	if err != nil {
 		return nil, err
@@ -24,9 +31,6 @@ func NewConfig() (*Config, error) {
 	if err = json.Unmarshal(configData, &config); err != nil {
 		return nil, err
 	}
-
-	config.ApiConfig.Channels = make(map[string]*api.History)
-	config.ApiConfig.Users = make(map[string]*api.User)
 
 	return &config, nil
 }

@@ -1,24 +1,40 @@
 package bot
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"AltavinGo/api"
+	"log"
+
+	"github.com/bwmarrin/discordgo"
+)
 
 var clear = command{
 	data: &discordgo.ApplicationCommand{
 		Name:        "clear",
-		Description: "Clears context history in this channel",
+		Description: "Clears chat history for this channel.",
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
-		message := "Context history cleared!"
 
-		if !bot.Config.ApiConfig.DeleteChannelHistories(i.ChannelID) {
-			message = "History is already empty!"
+		g, err := s.Guild(i.GuildID)
+		if err != nil {
+			log.Printf("[ERROR]: get guild: %v", err)
+			return
 		}
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := api.ChatReset(i.ChannelID); err != nil {
+			log.Printf("[ERROR]: chat reset: %s: %v", i.ChannelID, err)
+		} else {
+			log.Printf("[INFO]: %s/%s/%s/%s: Chat has been reset", i.Member.User.Username, i.Member.User.GlobalName, g.Name, g.ID)
+		}
+
+		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: message,
+				Content: "Chat has been reset",
 			},
-		})
+		}
+
+		if err := s.InteractionRespond(i.Interaction, response); err != nil {
+			log.Printf("[ERROR]: interaction reply sending: %v", err)
+		}
 	},
 }

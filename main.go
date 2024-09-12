@@ -1,69 +1,37 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"ollama-discord/bot"
-	"ollama-discord/config"
-
-	"github.com/bwmarrin/discordgo"
+	"AltavinGo/bot"
+	"AltavinGo/config"
 )
 
 // Open the log file
-func setupLogging() *os.File {
+func setupLogging() (*os.File, error) {
 	file, err := os.OpenFile("bot.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Fatal("Failed to open log file: ", err)
+		return nil, fmt.Errorf("[ERROR]: Failed to open log file: %v", err)
 	}
 
 	mv := io.MultiWriter(file, os.Stdout)
 	log.SetOutput(mv)
 
-	return file
+	return file, nil
 }
 
 // Read the config file
-func readConfig() *config.Config {
-	cfg, err := config.NewConfig()
+func readConfig() (*config.Config, error) {
+	cfg, err := config.New()
 	if err != nil {
-		log.Fatal("Failed to read config: ", err)
+		return nil, fmt.Errorf("[ERROR]: Failed to read config: %v", err)
 	}
-	return cfg
-}
-
-// Create a new bot session
-func createBotSession(cfg *config.Config) *bot.Bot {
-	dg, err := discordgo.New("Bot " + cfg.Token)
-	if err != nil {
-		log.Fatal("Failed creating Discord session: ", err)
-	}
-
-	b := bot.NewBot(dg, cfg)
-	b.RegisterHandlers()
-
-	if err = dg.Open(); err != nil {
-		log.Fatal("Error opening connection,", err)
-	}
-
-	return b
-}
-
-// Set up a ticker to remove old histories
-func startTicker(cfg *config.Config) {
-	delay := cfg.TimerDelay * time.Minute
-	ticker := time.NewTicker(delay)
-	go func() {
-		for {
-			<-ticker.C
-			cfg.ApiConfig.DeleteOldHistories(-delay)
-			cfg.ApiConfig.ResetUsersCounter(-delay)
-		}
-	}()
+	return cfg, nil
 }
 
 // Set up a signal channel
@@ -74,20 +42,29 @@ func waitForSignal() {
 }
 
 func main() {
-	file := setupLogging()
+	file, err := setupLogging()
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer file.Close()
 
-	cfg := readConfig()
-	bot := createBotSession(cfg)
+	cfg, err := readConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bot, err := bot.NewBot(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer bot.Session.Close()
 
-	if false {
+	if cfg.RegisterCommands {
 		err := bot.RegisterSlashCommands()
 		if err != nil {
-			log.Fatal("Cannot register command: ", err)
+			log.Printf("[WARNING]: cannot register command: %v", err)
 		}
 	}
 
-	startTicker(cfg)
 	waitForSignal()
 }

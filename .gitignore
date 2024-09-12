@@ -2,3 +2,4 @@ go.sum
 bot.log
 config.json
 guilds.json
+chats.json

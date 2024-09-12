@@ -1,9 +1,36 @@
 {
-	"token": "",
-	"timer-delay": 10,
-	"api-config": {
-		"api-domain": "http://localhost:11434",
-		"model": "llama3:8b",
-		"history-tokens-size": 4096
-	}
+	// The token used to authenticate your bot with Discord.
+	"tokenDiscord": "",
+	
+	// The token of your LLM service provider such as OpenAI or Grog. For Ollama, please specify 'ollama'.
+	"tokenLLM": "ollama",
+	
+	// The interval in minutes for downloading the chat history from memory and saving it to a file.
+	"historyTimer": 30,
+	
+	// The base URL for the LLM provider. For Ollama, it is 'localhost:11434'; for Grog, it is 'api.groq.com/openai'.
+	"base_url": "localhost:11434",
+	
+	// The name of the language model to use.
+	"model": "llama3:8b",
+	
+	// Custom instructions for the language model, defining its behavior and personality.
+	"system_prompt": "You are a helpful assistant.",
+	
+	// For simple questions or short answers, a value in the range of 50-100 tokens may be enough.
+	// For more detailed explanations or answers to difficult questions, the value of 150-250 tokens is usually suitable.
+	// For in-depth analyses or explanations, the value of 300-500 tokens may be optimal.
+	"max_tokens": 250,
+	
+	// The sampling temperature, ranging from 0 to 2. Higher values (e.g., 0.8) make the output more random, while lower values (e.g., 0.2) make it more focused and deterministic.
+	"temperature": 0.5,
+	
+	// Whether to register slash commands for new bots.
+	"register_slash_commands": false,
+	
+	// The maximum number of requests a user can make without hitting the timeout.
+	"maxUserRequests": 10,
+	
+	// The cooldown period in seconds during which the user cannot use the bot after reaching the request limit.
+	"cooldown_time": 30
 }
