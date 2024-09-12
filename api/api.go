@@ -79,9 +79,8 @@ func Generate(payload *Chat, prompt, baseURL, token string) (*Response, error) {
 		json.Unmarshal(body, &jsonBody)
 
 		responseForm, _ := json.Marshal(jsonBody)
-		payloadForm, _ := json.Marshal(payload)
 
-		return nil, fmt.Errorf("code: %v: response: %v payload: %v", res.StatusCode, string(responseForm), string(payloadForm))
+		return nil, fmt.Errorf("code: %v: response: %v", res.StatusCode, string(responseForm))
 	}
 
 	var resUnmarshal Response
