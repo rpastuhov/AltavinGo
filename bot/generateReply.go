@@ -128,6 +128,7 @@ func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error
 	}
 
 	prompt := strings.TrimSpace(strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", ""))
+	prompt = fmt.Sprintf("%s said: %s", m.Author.GlobalName, prompt)
 
 	chat := api.NewChat(m.ChannelID, bot.Config.SystemPrompt, bot.Config.Model, false, bot.Config.MaxTokens, bot.Config.Temperature)
 	payload := chat.AddToChat("user", prompt)

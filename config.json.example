@@ -3,7 +3,7 @@
 	"tokenDiscord": "",
 	
 	// The token of your LLM service provider such as OpenAI or Grog. For Ollama, please specify 'ollama'.
-	"tokenLLM": "",
+	"tokenLLM": "ollama",
 	
 	// The interval in minutes for downloading the chat history from memory and saving it to a file.
 	"historyTimer": 30,
@@ -17,8 +17,10 @@
 	// Custom instructions for the language model, defining its behavior and personality.
 	"system_prompt": "You are a helpful assistant.",
 	
-	// The maximum number of tokens that can be generated in a single chat completion.
-	"max_tokens": 1024,
+	// For simple questions or short answers, a value in the range of 50-100 tokens may be enough.
+	// For more detailed explanations or answers to difficult questions, the value of 150-250 tokens is usually suitable.
+	// For in-depth analyses or explanations, the value of 300-500 tokens may be optimal.
+	"max_tokens": 250,
 	
 	// The sampling temperature, ranging from 0 to 2. Higher values (e.g., 0.8) make the output more random, while lower values (e.g., 0.2) make it more focused and deterministic.
 	"temperature": 0.5,

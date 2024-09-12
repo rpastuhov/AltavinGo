@@ -43,8 +43,6 @@ func NewChat(channelID, systemPrompt, modelName string, stream bool, maxTokens i
 		messages = []Message{}
 	}
 
-	log.Printf("Messages: %v", messages)
-
 	chat := &Chat{
 		Model:       modelName,
 		Stream:      stream,
@@ -58,11 +56,9 @@ func NewChat(channelID, systemPrompt, modelName string, stream bool, maxTokens i
 		},
 	}
 
-	if len(messages) > 1 {
-		chat.Messages = append(chat.Messages, messages...)
+	if len(messages) > 0 {
+		chat.Messages = append(messages, chat.Messages...)
 	}
-
-	log.Printf("Messages added: %v", chat.Messages)
 
 	activeChats.data[channelID] = chat
 	return chat
@@ -97,7 +93,6 @@ func UnloadInactiveChats(historyTimer time.Duration) error {
 	}
 
 	if len(chatsToSave) == 0 {
-		log.Println("empty")
 		return nil
 	}
 
@@ -187,15 +182,36 @@ func ChatReset(channelID string) error {
 }
 
 func GetChatHistory(channelID string) string {
+	messages, err := LoadChatsFromFile(channelID)
+	if err != nil {
+		log.Printf("[WARNING]: loading chats from file: %s", err)
+		messages = []Message{}
+	}
+
 	chat, ok := activeChats.data[channelID]
 	if !ok {
+		chat = &Chat{
+			Messages: []Message{},
+		}
+	}
+
+	if len(messages) > 0 {
+		chat.Messages = append(messages, chat.Messages...)
+	}
+
+	if len(chat.Messages) == 0 {
 		return ""
 	}
 
 	var history strings.Builder
+
+	fmt.Fprintf(&history, "channel ID: %s\n", channelID)
 	for id, msg := range chat.Messages {
+		if msg.Role == "system" {
+			continue
+		}
 		fmt.Fprintf(&history, "%d. [%s]: %s\n", id, msg.Role, msg.Context)
 	}
 
-	return history.String()
+	return string(history.String())
 }

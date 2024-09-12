@@ -97,7 +97,7 @@ func (bot *Bot) RegisterHandlers() {
 }
 
 func (bot *Bot) StartTimer() {
-	delay := bot.Config.HistoryTimer*time.Minute - 50*time.Second
+	delay := bot.Config.HistoryTimer * time.Minute
 	ticker := time.NewTicker(delay)
 	go func() {
 		for {
@@ -106,8 +106,7 @@ func (bot *Bot) StartTimer() {
 			if err != nil {
 				log.Printf("[ERROR]: unload inactive chats: %v", err)
 			}
-			bot.ResetUsersCounter()
-			log.Println("[INFO]: Trimer")
+			bot.ResetUsersCooldowns()
 		}
 	}()
 }
@@ -144,7 +143,7 @@ func (bot *Bot) UpdateUserCounter(serverID, userID string) bool {
 	return true
 }
 
-func (bot *Bot) ResetUsersCounter() {
+func (bot *Bot) ResetUsersCooldowns() {
 	now := time.Now()
 	for serverID, server := range bot.Cooldowns {
 		for userID, user := range server.Users {
