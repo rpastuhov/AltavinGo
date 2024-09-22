@@ -82,7 +82,7 @@ func pingInNotAllowedChannels(s *discordgo.Session, m *discordgo.MessageCreate, 
 }
 
 func cooldownCheck(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) (bool, error) {
-	if bot.UpdateUserCounter(m.GuildID, m.Author.ID) {
+	if !bot.UpdateUserCounter(m.GuildID, m.Author.ID) {
 		return false, nil
 	}
 
@@ -96,7 +96,8 @@ func cooldownCheck(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) (
 	if _, err := s.ChannelMessageSendReply(m.ChannelID, timestamp, m.Reference()); err != nil {
 		return true, fmt.Errorf("sending message: %v", err)
 	}
-	return false, nil
+
+	return true, nil
 }
 
 func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error {
