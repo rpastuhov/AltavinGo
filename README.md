@@ -28,6 +28,7 @@ Here is an example of the `config.json` file:
   "tokenDiscord": "your-discord-token",
   "tokenLLM": "ollama",
   "historyTimer": 30,
+  "historyMaxMessages": 6,
   "base_url": "localhost:11434",
   "model": "llama3:8b",
   "system_prompt": "You are a helpful assistant.",
@@ -43,6 +44,7 @@ Here is an example of the `config.json` file:
 - **tokenDiscord**: The token used to authenticate your bot with Discord.
 - **tokenLLM**: The token to connect to the LLM service (e.g., `ollama` or a token from Groq).
 - **historyTimer**: The interval (in minutes) for saving chat history to a file.
+- **historyMaxMessages**: The number of messages saved in the conversation history
 - **base_url**: The base URL of your LLM provider.
 - **model**: The name of the language model to use.
 - **system_prompt**: Custom instructions defining the bot's behavior and personality.

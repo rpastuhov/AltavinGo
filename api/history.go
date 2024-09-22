@@ -57,18 +57,27 @@ func NewChat(channelID, systemPrompt, modelName string, stream bool, maxTokens i
 	}
 
 	if len(messages) > 0 {
-		chat.Messages = append(messages, chat.Messages...)
+		chat.Messages = append(chat.Messages, messages...)
 	}
 
 	activeChats.data[channelID] = chat
 	return chat
 }
 
-func (chat *Chat) AddToChat(role, context string) *Chat {
+func (chat *Chat) AddToChat(role, context string, maxMessages int) *Chat {
 	activeChats.Lock()
 	defer activeChats.Unlock()
 
 	chat.LastRequest = time.Now()
+
+	if len(chat.Messages) > maxMessages {
+		system := chat.Messages[0]
+		newMessages := chat.Messages[len(chat.Messages)-maxMessages+1:]
+
+		chat.Messages = []Message{system}
+		chat.Messages = append(chat.Messages, newMessages...)
+	}
+
 	chat.Messages = append(chat.Messages, Message{
 		Role:    role,
 		Context: context,
@@ -182,21 +191,18 @@ func ChatReset(channelID string) error {
 }
 
 func GetChatHistory(channelID string) string {
-	messages, err := LoadChatsFromFile(channelID)
-	if err != nil {
-		log.Printf("[WARNING]: loading chats from file: %s", err)
-		messages = []Message{}
-	}
 
 	chat, ok := activeChats.data[channelID]
 	if !ok {
-		chat = &Chat{
-			Messages: []Message{},
+		messages, err := LoadChatsFromFile(channelID)
+		if err != nil {
+			log.Printf("[WARNING]: loading chats from file: %s", err)
+			messages = []Message{}
 		}
-	}
 
-	if len(messages) > 0 {
-		chat.Messages = append(messages, chat.Messages...)
+		chat = &Chat{
+			Messages: messages,
+		}
 	}
 
 	if len(chat.Messages) == 0 {

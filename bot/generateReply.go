@@ -128,10 +128,10 @@ func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error
 	}
 
 	prompt := strings.TrimSpace(strings.ReplaceAll(m.Content, "<@"+s.State.User.ID+">", ""))
-	prompt = fmt.Sprintf("%s said: %s", m.Author.GlobalName, prompt)
+	prompt = fmt.Sprintf("%s: %s", m.Author.Username, prompt)
 
 	chat := api.NewChat(m.ChannelID, bot.Config.SystemPrompt, bot.Config.Model, false, bot.Config.MaxTokens, bot.Config.Temperature)
-	payload := chat.AddToChat("user", prompt)
+	payload := chat.AddToChat("user", prompt, bot.Config.HistoryMaxMessages)
 
 	log.Printf("[INFO]: %s/%s/%s/%s: Processing: %s", m.Author.Username, m.Author.GlobalName, g.Name, g.ID, oneLine(prompt))
 
@@ -145,7 +145,7 @@ func SendReply(s *discordgo.Session, m *discordgo.MessageCreate, bot *Bot) error
 		context = context[:2000]
 	}
 
-	chat.AddToChat("assistant", context)
+	chat.AddToChat("assistant", context, bot.Config.HistoryMaxMessages)
 
 	log.Printf("[INFO]: %s/%s/%s/%s: Response (%d tokens): %s", m.Author.Username, m.Author.GlobalName, g.Name, g.ID, res.Usage.TotalTokens, oneLine(context))
 

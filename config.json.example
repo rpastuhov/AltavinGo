@@ -7,6 +7,9 @@
 	
 	// The interval in minutes for downloading the chat history from memory and saving it to a file.
 	"historyTimer": 30,
+
+	// The number of messages saved in the conversation history
+	"historyMaxMessages": 6,
 	
 	// The base URL for the LLM provider. For Ollama, it is 'localhost:11434'; for Grog, it is 'api.groq.com/openai'.
 	"base_url": "localhost:11434",

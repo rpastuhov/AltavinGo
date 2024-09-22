@@ -7,17 +7,18 @@ import (
 )
 
 type Config struct {
-	TokenDiscord     string        `json:"tokenDiscord"`
-	TokenLLM         string        `json:"tokenLLM"`
-	HistoryTimer     time.Duration `json:"historyTimer"`
-	BaseURL          string        `json:"base_url"`
-	Model            string        `json:"model"`
-	SystemPrompt     string        `json:"system_prompt"`
-	MaxTokens        int           `json:"max_tokens"`
-	Temperature      float32       `json:"temperature"`
-	RegisterCommands bool          `json:"register_slash_commands"`
-	MaxUserRequests  int           `json:"maxUserRequests"`
-	CooldownTime     time.Duration `json:"cooldown_time"`
+	TokenDiscord       string        `json:"tokenDiscord"`
+	TokenLLM           string        `json:"tokenLLM"`
+	HistoryTimer       time.Duration `json:"historyTimer"`
+	HistoryMaxMessages int           `json:"historyMaxMessages"`
+	BaseURL            string        `json:"base_url"`
+	Model              string        `json:"model"`
+	SystemPrompt       string        `json:"system_prompt"`
+	MaxTokens          int           `json:"max_tokens"`
+	Temperature        float32       `json:"temperature"`
+	RegisterCommands   bool          `json:"register_slash_commands"`
+	MaxUserRequests    int           `json:"maxUserRequests"`
+	CooldownTime       time.Duration `json:"cooldown_time"`
 }
 
 func New() (*Config, error) {
