@@ -129,18 +129,18 @@ func (bot *Bot) UpdateUserCounter(serverID, userID string) bool {
 	server.Users[userID] = user
 
 	if user.EndCooldown.After(now) {
-		return false
+		return true
 	}
 
 	if user.RequestsCount > bot.Config.MaxUserRequests {
 		user.EndCooldown = now.Add(bot.Config.CooldownTime * time.Minute)
 		server.Users[userID] = user
-		return false
+		return true
 	}
 
 	bot.Cooldowns[serverID] = server
 
-	return true
+	return false
 }
 
 func (bot *Bot) ResetUsersCooldowns() {
