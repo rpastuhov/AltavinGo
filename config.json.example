@@ -1,15 +1,15 @@
 {
 	// The token used to authenticate your bot with Discord.
-	"tokenDiscord": "",
+	"token_discord": "",
 	
 	// The token of your LLM service provider such as OpenAI or Grog. For Ollama, please specify 'ollama'.
-	"tokenLLM": "ollama",
+	"token_llm": "ollama",
 	
 	// The interval in minutes for downloading the chat history from memory and saving it to a file.
-	"historyTimer": 30,
+	"history_timer": 30,
 
 	// The number of messages saved in the conversation history
-	"historyMaxMessages": 6,
+	"history_max_messages": 6,
 	
 	// The base URL for the LLM provider. For Ollama, it is 'localhost:11434'; for Grog, it is 'api.groq.com/openai'.
 	"base_url": "localhost:11434",
@@ -32,7 +32,7 @@
 	"register_slash_commands": false,
 	
 	// The maximum number of requests a user can make without hitting the timeout.
-	"maxUserRequests": 10,
+	"max_user_requests": 10,
 	
 	// The cooldown period in seconds during which the user cannot use the bot after reaching the request limit.
 	"cooldown_time": 30

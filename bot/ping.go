@@ -10,18 +10,14 @@ import (
 
 var ping = command{
 	data: &discordgo.ApplicationCommand{
-		Name:        "ping",
-		Description: "Check bot latency!",
+		Name:             "ping",
+		Description:      "Check bot latency!",
+		IntegrationTypes: &integrationTypes,
+		Contexts:         &contexts,
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
 
-		g, err := s.Guild(i.GuildID)
-		if err != nil {
-			log.Printf("[ERROR]: get guild: %v", err)
-			return
-		}
-
-		log.Printf("[INFO]: %s/%s/%s/%s: Checks the bot's ping", i.Member.User.Username, i.Member.User.GlobalName, g.Name, g.ID)
+		log.Printf("[INFO]: %s/%s/%s: Checks the bot's ping", i.Member.User.Username, i.Member.User.GlobalName, i.ChannelID)
 
 		start := time.Now()
 

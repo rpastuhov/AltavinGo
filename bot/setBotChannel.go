@@ -6,13 +6,14 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var defaultMemberPermissions int64 = discordgo.PermissionAdministrator
-
 var setBotChannel = command{
 	data: &discordgo.ApplicationCommand{
 		Name:                     "set-bot-channel",
 		Description:              "Disables the ability to reply to messages in other channels.",
 		DefaultMemberPermissions: &defaultMemberPermissions,
+		DMPermission:             &dmPermission,
+		IntegrationTypes:         &integrationTypes,
+		Contexts:                 &contexts,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "channel",
@@ -50,6 +51,7 @@ var setBotChannel = command{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: response,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 	},

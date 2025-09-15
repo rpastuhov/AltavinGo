@@ -1,0 +1,20 @@
+services:
+    bot:
+        image: altavin:latest
+        build: .
+        container_name: altavin
+        restart: always
+        logging:
+            driver: "json-file"
+            options:
+                max-file: "3"
+                max-size: "10m"
+        ports:
+            - "8090:8090"
+        volumes:
+            - ./config.json:/app/config.json
+            - ./chats.json:/app/chats.json
+            - ./guilds.json:/app/guilds.json
+            - ./bot.log:/app/bot.log
+        environment:
+            - TZ=Europe/Podgorica

@@ -10,18 +10,14 @@ import (
 
 var history = command{
 	data: &discordgo.ApplicationCommand{
-		Name:        "history",
-		Description: "The history of your chats with the bot.",
+		Name:             "history",
+		Description:      "The history of your chats with the bot.",
+		IntegrationTypes: &integrationTypes,
+		Contexts:         &contexts,
 	},
 	execute: func(s *discordgo.Session, i *discordgo.InteractionCreate, bot *Bot) {
-		g, err := s.Guild(i.GuildID)
-		if err != nil {
-			log.Printf("[ERROR]: get guild: %v", err)
-			return
-		}
-
 		history := api.GetChatHistory(i.ChannelID)
-		log.Printf("[INFO]: %s/%s/%s/%s: Requesting a chat history", i.Member.User.Username, i.Member.User.GlobalName, g.Name, g.ID)
+		log.Printf("[INFO]: %s/%s/%s: Requesting a chat history", i.Member.User.Username, i.Member.User.GlobalName, i.ChannelID)
 
 		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,

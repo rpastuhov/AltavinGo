@@ -17,15 +17,11 @@ type User struct {
 	EndCooldown   time.Time
 }
 
-type Server struct {
-	Users map[string]User
-}
-
 type Bot struct {
 	Session       *discordgo.Session
 	Config        *config.Config
 	GuildSettings map[string]string
-	Cooldowns     map[string]Server
+	Cooldowns     map[string]User
 }
 
 func NewBot(config *config.Config) (*Bot, error) {
@@ -43,7 +39,7 @@ func NewBot(config *config.Config) (*Bot, error) {
 		Session:       dg,
 		Config:        config,
 		GuildSettings: settings,
-		Cooldowns:     make(map[string]Server),
+		Cooldowns:     make(map[string]User),
 	}
 
 	b.RegisterHandlers()
@@ -53,14 +49,14 @@ func NewBot(config *config.Config) (*Bot, error) {
 		return nil, fmt.Errorf("[ERROR]: opening connection: %v", err)
 	}
 
-	return b, err
+	return b, nil
 }
 
 func (bot *Bot) RegisterSlashCommands() error {
 	var data []*discordgo.ApplicationCommand
 	for _, v := range commands {
 		data = append(data, v.data)
-		log.Printf("[INFO]: Command %v add\n", v.data.Name)
+		log.Printf("[INFO]: Command \"%v\" registered\n", v.data.Name)
 	}
 
 	if _, err := bot.Session.ApplicationCommandBulkOverwrite(bot.Session.State.User.ID, "", data); err != nil {
@@ -83,7 +79,11 @@ func (bot *Bot) RegisterHandlers() {
 		if err := SendReply(s, m, bot); err != nil {
 			log.Printf("[ERROR]: %v", err)
 
-			if _, err := s.ChannelMessageSendReply(m.ChannelID, "Something went wrong.", m.Reference()); err != nil {
+			if _, err := s.ChannelMessageSendReply(
+				m.ChannelID,
+				"Sorry, an error occurred while processing your request.",
+				m.Reference(),
+			); err != nil {
 				log.Printf("[ERROR]: message sending: %v", err)
 			}
 		}
@@ -111,48 +111,36 @@ func (bot *Bot) StartTimer() {
 	}()
 }
 
-func (bot *Bot) UpdateUserCounter(serverID, userID string) bool {
+func (bot *Bot) UpdateUserCounter(userID string) bool {
 	now := time.Now()
 
-	server, serverExists := bot.Cooldowns[serverID]
-	if !serverExists {
-		bot.Cooldowns[serverID] = Server{Users: make(map[string]User)}
-		server = bot.Cooldowns[serverID]
+	user, exists := bot.Cooldowns[userID]
+	if !exists {
+		user = User{RequestsCount: 0}
 	}
-
-	user, userExists := server.Users[userID]
-	if !userExists {
-		server.Users[userID] = User{RequestsCount: 0}
-	}
-
-	user.RequestsCount++
-	server.Users[userID] = user
 
 	if user.EndCooldown.After(now) {
 		return true
 	}
 
+	user.RequestsCount++
+
 	if user.RequestsCount > bot.Config.MaxUserRequests {
 		user.EndCooldown = now.Add(bot.Config.CooldownTime * time.Minute)
-		server.Users[userID] = user
+		user.RequestsCount = 0
+		bot.Cooldowns[userID] = user
 		return true
 	}
 
-	bot.Cooldowns[serverID] = server
-
+	bot.Cooldowns[userID] = user
 	return false
 }
 
 func (bot *Bot) ResetUsersCooldowns() {
 	now := time.Now()
-	for serverID, server := range bot.Cooldowns {
-		for userID, user := range server.Users {
-			if user.EndCooldown.Before(now) {
-				delete(server.Users, userID)
-			}
-		}
-		if len(server.Users) == 0 {
-			delete(bot.Cooldowns, serverID)
+	for userID, user := range bot.Cooldowns {
+		if user.EndCooldown.Before(now) && !user.EndCooldown.IsZero() {
+			delete(bot.Cooldowns, userID)
 		}
 	}
 }

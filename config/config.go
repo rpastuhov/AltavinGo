@@ -7,17 +7,17 @@ import (
 )
 
 type Config struct {
-	TokenDiscord       string        `json:"tokenDiscord"`
-	TokenLLM           string        `json:"tokenLLM"`
-	HistoryTimer       time.Duration `json:"historyTimer"`
-	HistoryMaxMessages int           `json:"historyMaxMessages"`
+	TokenDiscord       string        `json:"token_discord"`
+	TokenLLM           string        `json:"token_llm"`
+	HistoryTimer       time.Duration `json:"history_timer"`
+	HistoryMaxMessages int           `json:"history_max_messages"`
 	BaseURL            string        `json:"base_url"`
 	Model              string        `json:"model"`
 	SystemPrompt       string        `json:"system_prompt"`
 	MaxTokens          int           `json:"max_tokens"`
 	Temperature        float32       `json:"temperature"`
 	RegisterCommands   bool          `json:"register_slash_commands"`
-	MaxUserRequests    int           `json:"maxUserRequests"`
+	MaxUserRequests    int           `json:"max_user_requests"`
 	CooldownTime       time.Duration `json:"cooldown_time"`
 }
 
